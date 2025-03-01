@@ -1,5 +1,19 @@
 # Changelog for Disable Thumbnails, Compression, and Responsive Images Plugin
 
+## [1.5] - 2025-03-01
+
+### Added
+
+- Complete removal of non-thumbnail size generation
+- Intermediate image sizes prevention filter
+- Enhanced image size removal functionality
+
+### Changed
+
+- Updated plugin documentation
+- Improved image size removal process
+- Enhanced compatibility with WordPress core
+
 ## [1.3] - 2025-02-20
 
 ### Removed
