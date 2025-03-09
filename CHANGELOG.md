@@ -1,5 +1,31 @@
 # Changelog for Disable Thumbnails, Compression, and Responsive Images Plugin
 
+## [1.9] - 2025-03-08
+
+### Added
+
+- Admin UI under Media menu for configuring plugin settings
+- Comprehensive settings for controlling image optimization features
+- Quality and format controls for Fastly image optimization
+- Original image enforcement system that prevents WordPress scaled versions
+- Filter to replace -scaled image references with original images in content
+- Advanced metadata modification to ensure original image dimensions are used
+- Settings persistence through plugin activation/deactivation
+
+### Changed
+
+- Reorganized code structure for better maintainability
+- Separated debug tools into a standalone file (loaded only when WP_DEBUG is true)
+- Improved filter application with conditional loading based on settings
+- Enhanced image URL handling for better compatibility with Fastly optimization
+
+### Fixed
+
+- Issue with WordPress using -scaled images instead of originals
+- Attachment URL handling to properly reference original files
+- Settings structure to ensure consistent defaults across installations
+- Image metadata handling to reflect original dimensions
+
 ## [1.8] - 2025-03-08
 
 ### Added
