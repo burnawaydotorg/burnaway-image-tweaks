@@ -89,7 +89,7 @@ function custom_responsive_images($attr, $attachment, $size) {
     
     return $attr;
 }
-add_filter('wp_get_attachment_image_attributes', 'custom_responsive_images', 10, 3);
+add_filter('wp_get_attachment_image_attributes', 'custom_responsive_images', 999, 3);
 
 // Register the w192 size as a recognized size to ensure it's passed to our filter
 function register_custom_sizes() {
@@ -106,4 +106,17 @@ function remove_scaling_dimensions($upload) {
 
 // Disable big image size threshold to prevent auto-scaling
 add_filter('big_image_size_threshold', '__return_false');
+
+// Debug srcset
+add_action('wp_footer', 'debug_srcset');
+function debug_srcset() {
+    echo '<!-- Srcset debugging enabled -->';
+    // Find a recent image
+    $recent_img = get_posts(array('post_type' => 'attachment', 'numberposts' => 1));
+    if ($recent_img) {
+        $attr = array();
+        $result = custom_responsive_images($attr, $recent_img[0], 'full');
+        echo '<!-- Debug result: ' . esc_html(print_r($result, true)) . ' -->';
+    }
+}
 ?>

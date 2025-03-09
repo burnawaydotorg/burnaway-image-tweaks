@@ -1,5 +1,24 @@
 # Changelog for Disable Thumbnails, Compression, and Responsive Images Plugin
 
+## [1.8] - 2025-03-08
+
+### Added
+
+- Debugging tools for frontend srcset verification
+- Troubleshooting guide in documentation for responsive image issues
+
+### Changed
+
+- Increased filter priority to 999 to prevent conflicts with other plugins
+- Improved function completion to ensure proper srcset implementation
+- Enhanced documentation with troubleshooting steps
+
+### Fixed
+
+- Issue with srcset attributes not appearing on frontend images
+- Missing return statements in image processing functions
+- Filter conflicts with themes and other plugins
+
 ## [1.7] - 2025-03-08
 
 ### Added

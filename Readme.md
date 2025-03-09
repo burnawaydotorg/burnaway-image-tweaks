@@ -53,6 +53,30 @@ Currently, the responsive breakpoints are set to 320px, 480px, 768px, 1024px, 14
 
 No, this plugin actually prevents WordPress from compressing your original uploads, preserving their quality at 100%. The Fastly-delivered versions use a 90% quality setting for optimal delivery.
 
+= Why aren't my images showing responsive srcset attributes on the frontend? =
+
+If srcset attributes aren't appearing:
+
+1. **Clear your cache**: WordPress and browser caches can prevent new changes from appearing.
+2. **Check plugin conflicts**: Some image optimization plugins may override this plugin's functionality.
+3. **Check your theme**: Some themes bypass standard WordPress image functions.
+4. **Update to latest version**: Version 1.8+ includes enhanced debugging and priority handling.
+5. **Verify with browser dev tools**: Inspect your images to see if srcset attributes exist but aren't working.
+
+For advanced troubleshooting, you can add this code to your theme's functions.php:
+
+```php
+add_action('wp_footer', 'debug_fastly_srcset');
+function debug_fastly_srcset() {
+    if (is_user_logged_in() && current_user_can('manage_options')) {
+        $recent_img = get_posts(array('post_type' => 'attachment', 'numberposts' => 1));
+        if ($recent_img) {
+            echo '<!-- Fastly Srcset Debug Info: ' . esc_html(print_r(wp_get_attachment_image_attributes($recent_img[0]->ID), true)) . ' -->';
+        }
+    }
+}
+```
+
 == Changelog ==
 
 = 1.7 - 2025-03-08 =
