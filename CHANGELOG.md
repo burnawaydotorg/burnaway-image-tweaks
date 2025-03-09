@@ -1,5 +1,45 @@
 # Changelog for Disable Thumbnails, Compression, and Responsive Images Plugin
 
+## [1.7] - 2025-03-08
+
+### Added
+
+- Special handling for w192 size with smart cropping via Fastly
+- Improved error handling and validation for image metadata
+
+### Changed
+
+- Removed redundant image size registration for sizes already defined in theme
+- Updated code to follow WordPress coding standards
+- Improved URL construction with proper escaping
+- Refined image quality settings for Fastly (90 quality)
+
+### Fixed
+
+- Potential issues with malformed URLs in srcset
+- Edge cases with missing image metadata
+
+## [1.6] - 2025-03-01
+
+### Added
+
+- Custom responsive image handling with Fastly integration
+- AVIF and WebP format support via Fastly query parameters
+- Dynamic srcset generation based on original image dimensions
+- Configurable responsive breakpoints (320px to 1920px)
+
+### Changed
+
+- Removed WordPress default responsive image handling
+- Updated image attribute filtering for Fastly compatibility
+- Modified plugin description to reflect Fastly optimization
+
+### Maintained
+
+- Original image file integrity
+- WordPress thumbnail generation prevention
+- Image compression disabling (100% quality)
+
 ## [1.5] - 2025-03-01
 
 ### Added
