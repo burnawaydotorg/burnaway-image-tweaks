@@ -1,6 +1,8 @@
-# Changelog for Disable Thumbnails, Compression, and Responsive Images Plugin
+# Changelog for Burnaway Image Tweaks
 
 ## [1.9] - 2025-03-08
+
+Changed plugin name and description
 
 ### Added
 

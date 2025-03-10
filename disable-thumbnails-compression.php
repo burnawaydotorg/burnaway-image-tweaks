@@ -1,8 +1,9 @@
 <?php
 /*
-Plugin Name: Disable Thumbnails, Compression, and Responsive Images
-Description: Disables WordPress default image sizes while enabling Fastly-optimized responsive images
-Author: b sheats
+Plugin Name: Burnaway Image Tweaks
+Description: Custom features for Burnaway. Optimize image delivery with Fastly CDN while disabling WordPress's default image processing for improved performance and quality.
+
+Author: brandon sheats
 Version: 1.9
 */
 
