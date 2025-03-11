@@ -1,9 +1,9 @@
-=== Disable Thumbnails, Compression, and Responsive Images ===
-Contributors: bsheats
+=== Burnaway Image Tweaks ===
+Contributors: sheatsb
 Tags: images, thumbnails, compression, responsive images, fastly, optimization
 Requires at least: 5.0
 Tested up to: 6.4
-Stable tag: 1.7
+Stable tag: 2.0
 Requires PHP: 7.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
