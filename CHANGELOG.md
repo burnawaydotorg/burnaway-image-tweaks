@@ -4,6 +4,8 @@
 
 - Added support for theme-specific image sizes (192, 340, 540, 768, 1000px)
 - Enhanced srcset generation to prioritize theme breakpoints
+- Implemented get_original_image_url() function to ensure original images are used
+- Completely disabled WordPress image scaling for all uploads
 - Special handling for w192 size (192×336px with smart crop)
 - Updated responsive size arrays across all functions
 - Added settings page information about theme-specific sizes
