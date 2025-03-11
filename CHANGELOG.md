@@ -1,5 +1,16 @@
 # Changelog for Burnaway Image Tweaks
 
+## [2.0] - 2025-03-11
+
+- Added support for theme-specific image sizes (192, 340, 540, 768, 1000px)
+- Enhanced srcset generation to prioritize theme breakpoints
+- Special handling for w192 size (192×336px with smart crop)
+- Updated responsive size arrays across all functions
+- Added settings page information about theme-specific sizes
+- Registered custom image sizes to ensure proper size handling
+- Improved image resizing via Fastly query parameters
+- Fixed content image filtering to use theme-specific sizes
+
 ## [1.9] - 2025-03-08
 
 Changed plugin name and description

@@ -126,14 +126,53 @@ function custom_responsive_images($attr, $attachment, $size) {
         $attr = array();
     }
 
-    // Check if this is the w192 size for map-item
-    if ($size === 'w192') {
+    // Check for theme-specific sizes
+    $theme_sizes = array('w192', 'w340', 'w540', 'w768', 'w1000');
+    if (in_array($size, $theme_sizes)) {
         $src = wp_get_attachment_url($attachment->ID);
-        $attr['src'] = "$src?width=192&height=336&fit=crop&crop=smart&format=$format&quality=$quality";
-        // Remove srcset for this specific use case to ensure exact dimensions
-        if (isset($attr['srcset'])) {
-            unset($attr['srcset']);
+        $width = (int)str_replace('w', '', $size);
+        
+        // Special case for w192 which needs exact dimensions
+        if ($size === 'w192') {
+            $attr['src'] = "$src?width=192&height=336&fit=crop&crop=smart&format=$format&quality=$quality";
+            // Remove srcset for this specific use case to ensure exact dimensions
+            if (isset($attr['srcset'])) {
+                unset($attr['srcset']);
+            }
+        } else {
+            // For other theme sizes, set the width but keep responsive srcset
+            $attr['src'] = "$src?width=$width&format=$format&quality=$quality";
+            
+            // Get image metadata
+            $image_meta = wp_get_attachment_metadata($attachment->ID);
+            if ($image_meta && isset($image_meta['width'])) {
+                $orig_width = intval($image_meta['width']);
+                
+                // Define responsive widths with theme sizes
+                $sizes = array(192, 340, 480, 540, 768, 1000, 1024, 1440, 1920);
+                $srcset = array();
+                
+                // Build srcset with appropriate sizes
+                foreach ($sizes as $size_width) {
+                    // Skip sizes too close to original or larger than original
+                    if ($orig_width - $size_width < 50) {
+                        continue;
+                    }
+                    
+                    // Add this size to srcset
+                    $srcset[] = "$src?width=$size_width&format=$format&quality=$quality {$size_width}w";
+                }
+                
+                // Add the original image to srcset
+                $srcset[] = "$src?format=$format&quality=$quality {$orig_width}w";
+                
+                if (!empty($srcset)) {
+                    $attr['srcset'] = implode(', ', $srcset);
+                    $attr['sizes'] = "(max-width: {$width}px) 100vw, {$width}px";
+                }
+            }
         }
+        
         return $attr;
     }
 
@@ -156,7 +195,7 @@ function custom_responsive_images($attr, $attachment, $size) {
     }
     
     // Define responsive widths
-    $sizes = array(320, 480, 768, 1024, 1440, 1920);
+    $sizes = array(192, 340, 480, 540, 768, 1000, 1024, 1440, 1920);
     $srcset = array();
     
     // Build srcset entries for each size
@@ -224,7 +263,7 @@ function override_image_srcset($sources, $size_array, $image_src, $image_meta, $
     if ($width <= 0) return $sources;
     
     $new_sources = array();
-    $sizes = array(320, 480, 768, 1024, 1440, 1920);
+    $sizes = array(192, 340, 480, 540, 768, 1000, 1024, 1440, 1920);
     
     foreach ($sizes as $size_width) {
         if ($width - $size_width < 50) continue;
@@ -267,7 +306,7 @@ function replace_content_image($matches) {
     
     // Create srcset if not already present
     if (strpos($img_attrs, 'srcset=') === false) {
-        $sizes = array(320, 480, 768, 1024, 1280, 1536, 1920, 2048);
+        $sizes = array(192, 340, 480, 540, 768, 1000, 1024, 1280, 1536, 1920);
         $srcset = array();
         
         foreach ($sizes as $width) {
@@ -286,6 +325,10 @@ function replace_content_image($matches) {
 // Register the w192 size as a recognized size to ensure it's passed to our filter
 function register_custom_sizes() {
     add_image_size('w192', 192, 336, true);
+    add_image_size('w340', 340, 0, false);
+    add_image_size('w540', 540, 0, false);
+    add_image_size('w768', 768, 0, false);
+    add_image_size('w1000', 1000, 0, false);
 }
 add_action('after_setup_theme', 'register_custom_sizes');
 
@@ -509,7 +552,8 @@ function burnaway_image_tweaks_settings_page() {
                 <tr valign="top">
                     <th scope="row">Responsive Sizes</th>
                     <td>
-                        <p>Currently using these widths for responsive images: 320px, 480px, 768px, 1024px, 1440px, 1920px.</p>
+                        <p>Currently using these widths for responsive images: 192px, 340px, 480px, 540px, 768px, 1000px, 1024px, 1440px, 1920px.</p>
+                        <p>Theme-specific widths: 192px, 340px, 540px, 768px, 1000px are respected when directly requested.</p>
                         <p class="description">To customize these sizes, you'll need to modify the code directly in the plugin.</p>
                     </td>
                 </tr>
