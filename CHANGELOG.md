@@ -1,5 +1,17 @@
 # Changelog for Burnaway Image Tweaks
 
+## Version 2.0.1 (March 11, 2025)
+
+- Added support for theme-specific image sizes (192, 340, 540, 768, 1000px)
+- Fixed ShortPixel compatibility issues
+- Enhanced original image handling to ensure Fastly always uses original uploads
+- Fixed "Not Processable: Image Size Excluded" error in ShortPixel
+- Added get_original_image_url function for consistent original image references
+- Updated responsive sizes to include theme-specific breakpoints
+- Updated settings page with theme size information
+- Fixed function name reference causing fatal error
+- Improved metadata handling for better ShortPixel integration
+
 ## [2.0] - 2025-03-11
 
 - Added support for theme-specific image sizes (192, 340, 540, 768, 1000px)

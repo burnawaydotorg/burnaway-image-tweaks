@@ -4,7 +4,7 @@ Plugin Name: Burnaway Image Tweaks
 Description: Custom features for Burnaway. Optimize image delivery with Fastly CDN while disabling WordPress's default image processing for improved performance and quality.
 
 Author: brandon sheats
-Version: 2.0
+Version: 2.0.1
 */
 
 // Include debug tools if WP_DEBUG is enabled
@@ -68,6 +68,11 @@ function disable_image_sizes($sizes) {
         return $sizes;
     }
     
+    // Keep the sizes empty for WordPress, but make exception for ShortPixel
+    if (doing_filter('shortpixel_image_sizes')) {
+        return array('full' => 'full'); // Keep 'full' for ShortPixel
+    }
+    
     return array();
 }
 add_filter('intermediate_image_sizes_advanced', 'disable_image_sizes');
@@ -100,18 +105,24 @@ function should_apply_responsive_images() {
     return true;
 }
 
-// Get original image URL (bypassing scaled versions)
+// Improved get_original_image_url function
 function get_original_image_url($attachment_id) {
     $upload_dir = wp_upload_dir();
     $metadata = wp_get_attachment_metadata($attachment_id);
     
-    // If we have file metadata with the original file
+    // First check if there's an original_image (WordPress scaled the image)
+    if (isset($metadata['original_image']) && isset($metadata['file'])) {
+        $file_dir = dirname($metadata['file']);
+        $original_file = $file_dir === '.' ? $metadata['original_image'] : $file_dir . '/' . $metadata['original_image'];
+        return $upload_dir['baseurl'] . '/' . $original_file;
+    }
+    
+    // Otherwise use the regular file path
     if (isset($metadata['file'])) {
-        // Return the URL to the original file, not any scaled version
         return $upload_dir['baseurl'] . '/' . $metadata['file'];
     }
     
-    // Fallback to standard function if metadata isn't available
+    // Fallback to standard function
     return wp_get_attachment_url($attachment_id);
 }
 
@@ -434,15 +445,36 @@ function fix_content_image_urls($content) {
 }
 add_filter('the_content', 'fix_content_image_urls', 9); // Run before other content filters
 
-// Modify image metadata to use original dimensions
+// Modify image metadata but preserve info for ShortPixel
 function fix_attachment_metadata($data, $attachment_id) {
     // Check if this is image metadata
     if (!is_array($data) || !isset($data['file'])) {
         return $data;
     }
     
-    // If this is a scaled image, try to get original dimensions
+    // Check if we're in a ShortPixel context and need original metadata
+    $is_shortpixel = false;
+    $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 10);
+    foreach ($backtrace as $trace) {
+        if (isset($trace['class']) && strpos($trace['class'], 'ShortPixel') !== false) {
+            $is_shortpixel = true;
+            break;
+        }
+    }
+    
+    if ($is_shortpixel) {
+        // Don't modify metadata for ShortPixel operations
+        return $data;
+    }
+    
+    // If this is a scaled image, get original dimensions
     if (isset($data['original_image'])) {
+        // Keep a backup of the original metadata for ShortPixel
+        $data['_shortpixel_original'] = array(
+            'file' => $data['file'],
+            'original_image' => $data['original_image']
+        );
+        
         $original_file = dirname($data['file']) . '/' . $data['original_image'];
         $upload_dir = wp_upload_dir();
         $original_path = $upload_dir['basedir'] . '/' . $original_file;
@@ -453,6 +485,8 @@ function fix_attachment_metadata($data, $attachment_id) {
                 $data['width'] = $size_data[0];
                 $data['height'] = $size_data[1];
                 $data['file'] = $original_file;
+                // Keep original_image for ShortPixel but make it usable for our system
+                $data['_original_file'] = $data['original_image'];
                 unset($data['original_image']);
             }
         }
@@ -615,4 +649,63 @@ function disable_big_image_scaling() {
     add_filter('big_image_size_threshold', function() { return 99999; });
 }
 add_action('init', 'disable_big_image_scaling');
+
+// Enhanced ShortPixel compatibility
+function shortpixel_compatibility() {
+    // For ShortPixel, ensure the original image is accessible
+    add_filter('shortpixel_get_attached_file', function($file, $id) {
+        // Check if this is a scaled image
+        if (strpos($file, '-scaled.') !== false) {
+            $original_file = str_replace('-scaled.', '.', $file);
+            if (file_exists($original_file)) {
+                return $original_file; // Return original file path
+            }
+        }
+        return $file;
+    }, 10, 2);
+    
+    // Make sure 'full' size is always included
+    add_filter('shortpixel_image_sizes', function($sizes) {
+        if (!in_array('full', $sizes)) {
+            $sizes[] = 'full';
+        }
+        return $sizes;
+    });
+    
+    // Always make original images processable
+    add_filter('shortpixel_is_processable_size', function($processable, $size) {
+        if ($size === 'full') {
+            return true;
+        }
+        return $processable;
+    }, 10, 2);
+    
+    // Ensure ShortPixel can process the image
+    add_filter('shortpixel_skip_processable_check', function($skip, $size_key) {
+        if ($size_key === 'full') {
+            return true;
+        }
+        return $skip;
+    }, 10, 2);
+    
+    // Help ShortPixel find the actual original file
+    add_filter('shortpixel_actual_file_paths', function($paths, $id) {
+        // Add path to original file if it exists
+        $attachment_meta = wp_get_attachment_metadata($id);
+        
+        if (isset($attachment_meta['_shortpixel_original'])) {
+            $upload_dir = wp_upload_dir();
+            $orig_file = $attachment_meta['_shortpixel_original']['original_image'];
+            $file_dir = dirname($attachment_meta['_shortpixel_original']['file']);
+            $original_path = $upload_dir['basedir'] . '/' . $file_dir . '/' . $orig_file;
+            
+            if (file_exists($original_path)) {
+                $paths[] = $original_path;
+            }
+        }
+        
+        return $paths;
+    }, 10, 2);
+}
+add_action('plugins_loaded', 'shortpixel_compatibility');
 ?>
