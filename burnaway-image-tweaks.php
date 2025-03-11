@@ -100,6 +100,21 @@ function should_apply_responsive_images() {
     return true;
 }
 
+// Get original image URL (bypassing scaled versions)
+function get_original_image_url($attachment_id) {
+    $upload_dir = wp_upload_dir();
+    $metadata = wp_get_attachment_metadata($attachment_id);
+    
+    // If we have file metadata with the original file
+    if (isset($metadata['file'])) {
+        // Return the URL to the original file, not any scaled version
+        return $upload_dir['baseurl'] . '/' . $metadata['file'];
+    }
+    
+    // Fallback to standard function if metadata isn't available
+    return wp_get_attachment_url($attachment_id);
+}
+
 // Custom responsive image handling with Fastly
 function custom_responsive_images($attr, $attachment, $size) {
     $settings = get_burnaway_image_settings();
@@ -129,7 +144,8 @@ function custom_responsive_images($attr, $attachment, $size) {
     // Check for theme-specific sizes
     $theme_sizes = array('w192', 'w340', 'w540', 'w768', 'w1000');
     if (in_array($size, $theme_sizes)) {
-        $src = wp_get_attachment_url($attachment->ID);
+        // Use original image URL, not scaled version
+        $src = get_original_image_url($attachment->ID);
         $width = (int)str_replace('w', '', $size);
         
         // Special case for w192 which needs exact dimensions
@@ -188,7 +204,8 @@ function custom_responsive_images($attr, $attachment, $size) {
     }
 
     $width = intval($image_meta['width']);
-    $src = wp_get_attachment_url($attachment->ID);
+    // Use original image URL, not scaled version
+    $src = get_original_image_url($attachment->ID);
     
     if (empty($src) || $width <= 0) {
         return $attr;
@@ -255,9 +272,8 @@ function override_image_srcset($sources, $size_array, $image_src, $image_meta, $
     $formats = isset($settings['formats']) && is_array($settings['formats']) ? $settings['formats'] : array('auto');
     $format = !empty($formats) ? $formats[0] : 'auto';
     
-    // Force our custom srcset creation
-    $src = wp_get_attachment_url($attachment_id);
-    if (!$src) return $sources;
+    // Replace image_src with original image
+    $src = get_original_image_url($attachment_id);
     
     $width = isset($image_meta['width']) ? intval($image_meta['width']) : 0;
     if ($width <= 0) return $sources;
@@ -288,7 +304,15 @@ function override_image_srcset($sources, $size_array, $image_src, $image_meta, $
 function filter_content_images($content) {
     // Use regex to find and replace img tags
     $pattern = '/<img(.*?)src=[\'"](.*?)[\'"](.*?)>/i';
-    return preg_replace_callback($pattern, 'replace_content_image', $content);
+    $content = preg_replace_callback($pattern, 'replace_content_image', $content);
+    
+    // When processing image tags in content, ensure we're using original URLs
+    // Add logic to identify and replace scaled image URLs with original ones
+    $content = preg_replace_callback('/-scaled\.(jpe?g|png|gif|webp)/i', function($matches) {
+        return '.' . $matches[1]; // Remove '-scaled' suffix
+    }, $content);
+    
+    return $content;
 }
 
 // Replace individual images in content
@@ -335,7 +359,7 @@ add_action('after_setup_theme', 'register_custom_sizes');
 // Remove the scaling dimensions
 add_filter('upload_dir', 'remove_scaling_dimensions');
 function remove_scaling_dimensions($upload) {
-    remove_filter('image_size_names_choose', 'add_image_size_names');
+    // Remove reference to undefined function
     return $upload;
 }
 
@@ -576,4 +600,19 @@ function burnaway_image_tweaks_settings_page() {
     </div>
     <?php
 }
+
+// Disable WordPress big image scaling
+function disable_big_image_scaling() {
+    $settings = get_burnaway_image_settings(); // FIXED: Correct function name
+    
+    if (!isset($settings['disable_scaling']) || !$settings['disable_scaling']) {
+        return;
+    }
+    
+    // Set big image threshold to a very large number, effectively disabling scaling
+    add_filter('big_image_size_threshold', '__return_false');
+    // For WordPress versions that don't respect the false value:
+    add_filter('big_image_size_threshold', function() { return 99999; });
+}
+add_action('init', 'disable_big_image_scaling');
 ?>
