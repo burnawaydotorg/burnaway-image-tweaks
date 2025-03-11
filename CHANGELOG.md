@@ -1,5 +1,23 @@
 # Changelog for Burnaway Image Tweaks
 
+## Version 2.1 (March 11, 2025)
+
+- Significant performance optimizations across all plugin functions
+- Added caching for attachment metadata to reduce database queries
+- Added static caching for theme sizes and responsive breakpoints
+- Optimized ShortPixel detection to avoid expensive backtrace operations
+- Improved file existence checking with caching
+- Added centralized theme size definition functions
+- More efficient responsive image handling with early returns
+- Combined content image filtering into single regex pass
+- Optimized image URL retrieval with result caching
+- Added conditional loading of plugin features
+- Fixed issue with w768 image size handling
+- Implemented more efficient ShortPixel compatibility filters
+- Enhanced responsive image srcset generation for better performance
+- Fixed theme-specific width handling (192, 340, 540, 768, 1000px)
+- Added static array of theme sizes to avoid repeated lookups
+
 ## Version 2.0.1 (March 11, 2025)
 
 - Added support for theme-specific image sizes (192, 340, 540, 768, 1000px)

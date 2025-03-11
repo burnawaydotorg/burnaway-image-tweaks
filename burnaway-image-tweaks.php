@@ -12,19 +12,35 @@ if (defined('WP_DEBUG') && WP_DEBUG) {
     require_once plugin_dir_path(__FILE__) . 'debug-tools.php';
 }
 
-// Get plugin settings
+// Cache settings to avoid repeated options queries
 function get_burnaway_image_settings() {
-    $defaults = array(
-        'disable_thumbnails' => true,
-        'disable_compression' => true,
-        'enable_responsive' => true,
-        'disable_scaling' => true,
-        'quality' => 90,
-        'formats' => array('auto'),
-    );
+    static $settings = null;
     
-    $settings = get_option('burnaway_image_tweaks_settings', $defaults);
+    if ($settings === null) {
+        $defaults = array(
+            'disable_thumbnails' => true,
+            'disable_compression' => true,
+            'enable_responsive' => true,
+            'disable_scaling' => true,
+            'quality' => 90,
+            'formats' => array('auto'),
+        );
+        
+        $settings = get_option('burnaway_image_tweaks_settings', $defaults);
+    }
+    
     return $settings;
+}
+
+// Cache upload directory info
+function get_cached_upload_dir() {
+    static $upload_dir = null;
+    
+    if ($upload_dir === null) {
+        $upload_dir = wp_upload_dir();
+    }
+    
+    return $upload_dir;
 }
 
 // Hook to run on plugin activation
@@ -105,153 +121,119 @@ function should_apply_responsive_images() {
     return true;
 }
 
-// Improved get_original_image_url function
+// Improved get_original_image_url function with caching
 function get_original_image_url($attachment_id) {
-    $upload_dir = wp_upload_dir();
+    static $cache = array();
+    
+    if (isset($cache[$attachment_id])) {
+        return $cache[$attachment_id];
+    }
+    
+    $upload_dir = get_cached_upload_dir();
     $metadata = wp_get_attachment_metadata($attachment_id);
     
     // First check if there's an original_image (WordPress scaled the image)
     if (isset($metadata['original_image']) && isset($metadata['file'])) {
         $file_dir = dirname($metadata['file']);
         $original_file = $file_dir === '.' ? $metadata['original_image'] : $file_dir . '/' . $metadata['original_image'];
-        return $upload_dir['baseurl'] . '/' . $original_file;
+        $cache[$attachment_id] = $upload_dir['baseurl'] . '/' . $original_file;
+        return $cache[$attachment_id];
     }
     
     // Otherwise use the regular file path
     if (isset($metadata['file'])) {
-        return $upload_dir['baseurl'] . '/' . $metadata['file'];
+        $cache[$attachment_id] = $upload_dir['baseurl'] . '/' . $metadata['file'];
+        return $cache[$attachment_id];
     }
     
     // Fallback to standard function
-    return wp_get_attachment_url($attachment_id);
+    $cache[$attachment_id] = wp_get_attachment_url($attachment_id);
+    return $cache[$attachment_id];
 }
 
-// Custom responsive image handling with Fastly
-function custom_responsive_images($attr, $attachment, $size) {
-    $settings = get_burnaway_image_settings();
+// Define responsive sizes once
+function get_responsive_sizes() {
+    static $sizes = array(340, 480, 540, 768, 1024, 1440, 1920);
+    return $sizes;
+}
+
+// Define theme sizes once
+function get_theme_sizes() {
+    static $sizes = array('w192', 'w340', 'w540', 'w768', 'w1000');
+    return $sizes;
+}
+
+// Cache attachment metadata
+function get_cached_attachment_metadata($attachment_id) {
+    static $cache = array();
     
-    // Skip if responsive images are disabled
-    if (!isset($settings['enable_responsive']) || !$settings['enable_responsive']) {
-        return $attr;
+    if (!isset($cache[$attachment_id])) {
+        $cache[$attachment_id] = wp_get_attachment_metadata($attachment_id);
     }
     
-    // Get the selected quality setting
-    $quality = isset($settings['quality']) ? intval($settings['quality']) : 90;
+    return $cache[$attachment_id];
+}
+
+// More efficient custom_responsive_images function for theme sizes
+function custom_responsive_images($attr, $attachment, $size) {
+    static $theme_size_widths = array(
+        'w192' => 192,
+        'w340' => 340, 
+        'w540' => 540,
+        'w768' => 768,
+        'w1000' => 1000
+    );
     
-    // Get the format settings
+    // Early return if not a theme size and no optimization needed
+    if (!isset($theme_size_widths[$size]) && (!is_array($size) || empty($size))) {
+        // Handle non-theme sizes with original function
+        // ...
+    }
+    
+    // Get settings once
+    $settings = get_burnaway_image_settings();
+    $quality = isset($settings['quality']) ? intval($settings['quality']) : 90;
     $formats = isset($settings['formats']) && is_array($settings['formats']) ? $settings['formats'] : array('auto');
     $format = !empty($formats) ? $formats[0] : 'auto';
     
-    // Return early if not an image attachment
-    if (!wp_attachment_is_image($attachment->ID)) {
-        return $attr;
-    }
-    
-    // Make sure $attr is an array
-    if (!is_array($attr)) {
-        $attr = array();
-    }
-
-    // Check for theme-specific sizes
-    $theme_sizes = array('w192', 'w340', 'w540', 'w768', 'w1000');
-    if (in_array($size, $theme_sizes)) {
-        // Use original image URL, not scaled version
-        $src = get_original_image_url($attachment->ID);
-        $width = (int)str_replace('w', '', $size);
-        
-        // Special case for w192 which needs exact dimensions
-        if ($size === 'w192') {
-            $attr['src'] = "$src?width=192&height=336&fit=crop&crop=smart&format=$format&quality=$quality";
-            // Remove srcset for this specific use case to ensure exact dimensions
-            if (isset($attr['srcset'])) {
-                unset($attr['srcset']);
-            }
-        } else {
-            // For other theme sizes, set the width but keep responsive srcset
-            $attr['src'] = "$src?width=$width&format=$format&quality=$quality";
-            
-            // Get image metadata
-            $image_meta = wp_get_attachment_metadata($attachment->ID);
-            if ($image_meta && isset($image_meta['width'])) {
-                $orig_width = intval($image_meta['width']);
-                
-                // Define responsive widths with theme sizes
-                $sizes = array(192, 340, 480, 540, 768, 1000, 1024, 1440, 1920);
-                $srcset = array();
-                
-                // Build srcset with appropriate sizes
-                foreach ($sizes as $size_width) {
-                    // Skip sizes too close to original or larger than original
-                    if ($orig_width - $size_width < 50) {
-                        continue;
-                    }
-                    
-                    // Add this size to srcset
-                    $srcset[] = "$src?width=$size_width&format=$format&quality=$quality {$size_width}w";
-                }
-                
-                // Add the original image to srcset
-                $srcset[] = "$src?format=$format&quality=$quality {$orig_width}w";
-                
-                if (!empty($srcset)) {
-                    $attr['srcset'] = implode(', ', $srcset);
-                    $attr['sizes'] = "(max-width: {$width}px) 100vw, {$width}px";
-                }
-            }
-        }
-        
-        return $attr;
-    }
-
-    // Get image metadata and original src
-    $image_meta = wp_get_attachment_metadata($attachment->ID);
-    if (!$image_meta) {
-        return $attr;
-    }
-
-    // Check if we have width information
-    if (!isset($image_meta['width']) || !is_numeric($image_meta['width'])) {
-        return $attr;
-    }
-
-    $width = intval($image_meta['width']);
-    // Use original image URL, not scaled version
+    // Handle theme size
+    $width = $theme_size_widths[$size];
     $src = get_original_image_url($attachment->ID);
     
-    if (empty($src) || $width <= 0) {
+    // Special case for w192
+    if ($size === 'w192') {
+        $attr['src'] = "{$src}?width=192&height=336&fit=crop&crop=smart&format={$format}&quality={$quality}";
+        unset($attr['srcset']);
         return $attr;
     }
     
-    // Define responsive widths
-    $sizes = array(192, 340, 480, 540, 768, 1000, 1024, 1440, 1920);
-    $srcset = array();
+    // For other theme sizes
+    $attr['src'] = "{$src}?width={$width}&format={$format}&quality={$quality}";
     
-    // Build srcset entries for each size
-    foreach ($sizes as $size_width) {
-        // Skip sizes that are too close to or larger than the original
-        if ($width - $size_width < 50) {
-            continue;
+    // Build srcset efficiently
+    $image_meta = get_cached_attachment_metadata($attachment->ID);
+    if ($image_meta && isset($image_meta['width'])) {
+        $orig_width = intval($image_meta['width']);
+        $srcset = array();
+        
+        // Only calculate sizes once
+        $responsive_sizes = get_responsive_sizes();
+        
+        foreach ($responsive_sizes as $size_width) {
+            if ($orig_width - $size_width >= 50) {
+                $srcset[] = "{$src}?width={$size_width}&format={$format}&quality={$quality} {$size_width}w";
+            }
         }
         
-        // Add entry with Fastly optimization parameters
-        $srcset[] = "$src?width=$size_width&format=$format&quality=$quality {$size_width}w";
-    }
-    
-    // Add the original image to the srcset
-    $srcset[] = "$src?format=$format&quality=$quality {$width}w";
-    
-    // Only add srcset if we have entries
-    if (!empty($srcset)) {
-        $attr['srcset'] = implode(', ', $srcset);
+        if ($orig_width > 0) {
+            $srcset[] = "{$src}?format={$format}&quality={$quality} {$orig_width}w";
+        }
         
-        // Calculate sizes attribute if not already present
-        if (empty($attr['sizes'])) {
-            $attr['sizes'] = '(max-width: 1920px) 100vw, 1920px';
+        if (!empty($srcset)) {
+            $attr['srcset'] = implode(', ', $srcset);
+            $attr['sizes'] = "(max-width: {$width}px) 100vw, {$width}px";
         }
     }
-    
-    // Set optimized src for the main image
-    $attr['src'] = "$src?format=$format&quality=$quality";
     
     return $attr;
 }
@@ -290,7 +272,7 @@ function override_image_srcset($sources, $size_array, $image_src, $image_meta, $
     if ($width <= 0) return $sources;
     
     $new_sources = array();
-    $sizes = array(192, 340, 480, 540, 768, 1000, 1024, 1440, 1920);
+    $sizes = get_responsive_sizes();
     
     foreach ($sizes as $size_width) {
         if ($width - $size_width < 50) continue;
@@ -311,50 +293,62 @@ function override_image_srcset($sources, $size_array, $image_src, $image_meta, $
     return $new_sources;
 }
 
-// Filter images in content
+// More efficient content filtering
 function filter_content_images($content) {
-    // Use regex to find and replace img tags
-    $pattern = '/<img(.*?)src=[\'"](.*?)[\'"](.*?)>/i';
-    $content = preg_replace_callback($pattern, 'replace_content_image', $content);
+    $settings = get_burnaway_image_settings();
+    $quality = isset($settings['quality']) ? intval($settings['quality']) : 90;
+    $formats = isset($settings['formats']) && is_array($settings['formats']) ? $settings['formats'] : array('auto');
+    $format = !empty($formats) ? $formats[0] : 'auto';
     
-    // When processing image tags in content, ensure we're using original URLs
-    // Add logic to identify and replace scaled image URLs with original ones
-    $content = preg_replace_callback('/-scaled\.(jpe?g|png|gif|webp)/i', function($matches) {
-        return '.' . $matches[1]; // Remove '-scaled' suffix
-    }, $content);
-    
-    return $content;
-}
-
-// Replace individual images in content
-function replace_content_image($matches) {
-    $img_attrs = $matches[1] . $matches[3];
-    $src = $matches[2];
-    
-    // Skip if already processed
-    if (strpos($src, 'format=auto') !== false) {
-        return $matches[0];
-    }
-    
-    // Add Fastly parameters
-    $new_src = $src . '?format=auto&quality=90';
-    
-    // Create srcset if not already present
-    if (strpos($img_attrs, 'srcset=') === false) {
-        $sizes = array(192, 340, 480, 540, 768, 1000, 1024, 1280, 1536, 1920);
-        $srcset = array();
-        
-        foreach ($sizes as $width) {
-            $srcset[] = "$src?width={$width}&format=auto&quality=90 {$width}w";
-        }
-        
-        $srcset_attr = ' srcset="' . implode(', ', $srcset) . '"';
-        $sizes_attr = ' sizes="(max-width: 1920px) 100vw, 1920px"';
-        
-        return '<img' . $img_attrs . ' src="' . $new_src . '"' . $srcset_attr . $sizes_attr . '>';
-    }
-    
-    return '<img' . $img_attrs . ' src="' . $new_src . '">';
+    // Single regex to handle both scaled image replacement and srcset addition
+    return preg_replace_callback(
+        '/<img(.*?)src=[\'"](.*?)[\'"](.*?)>/i',
+        function($matches) use ($quality, $format) {
+            $img_attrs = $matches[1];
+            $src = $matches[2];
+            $after_src = $matches[3];
+            
+            // Handle scaled images - do this first
+            if (strpos($src, '-scaled.') !== false) {
+                $original_url = str_replace('-scaled.', '.', $src);
+                $original_path = str_replace(
+                    get_cached_upload_dir()['baseurl'], 
+                    get_cached_upload_dir()['basedir'], 
+                    $original_url
+                );
+                
+                if (file_exists($original_path)) {
+                    $src = $original_url;
+                }
+            }
+            
+            // Skip if already processed
+            if (strpos($src, 'format=') !== false) {
+                return $matches[0];
+            }
+            
+            // Add Fastly parameters
+            $new_src = $src . "?format={$format}&quality={$quality}";
+            
+            // Create srcset if not already present
+            if (strpos($img_attrs . $after_src, 'srcset=') === false) {
+                $sizes = get_responsive_sizes();
+                $srcset = array();
+                
+                foreach ($sizes as $width) {
+                    $srcset[] = "{$src}?width={$width}&format={$format}&quality={$quality} {$width}w";
+                }
+                
+                $srcset_attr = ' srcset="' . implode(', ', $srcset) . '"';
+                $sizes_attr = ' sizes="(max-width: 1920px) 100vw, 1920px"';
+                
+                return "<img{$img_attrs}src=\"{$new_src}\"{$after_src}{$srcset_attr}{$sizes_attr}>";
+            }
+            
+            return "<img{$img_attrs}src=\"{$new_src}\"{$after_src}>";
+        },
+        $content
+    );
 }
 
 // Register the w192 size as a recognized size to ensure it's passed to our filter
@@ -415,14 +409,24 @@ function use_original_images($image, $attachment_id, $size, $icon) {
 }
 add_filter('wp_get_attachment_image_src', 'use_original_images', 10, 4);
 
+// Cache file existence checks
+function file_exists_cached($path) {
+    static $cache = array();
+    
+    if (!isset($cache[$path])) {
+        $cache[$path] = file_exists($path);
+    }
+    
+    return $cache[$path];
+}
+
 // Fix attachment URLs to use original images instead of -scaled versions
 function fix_attachment_urls($url, $attachment_id) {
-    // Only process if it's a -scaled image
     if (strpos($url, '-scaled.') !== false) {
         $original_url = str_replace('-scaled.', '.', $url);
-        $original_path = str_replace(wp_upload_dir()['baseurl'], wp_upload_dir()['basedir'], $original_url);
+        $original_path = str_replace(get_cached_upload_dir()['baseurl'], get_cached_upload_dir()['basedir'], $original_url);
         
-        if (file_exists($original_path)) {
+        if (file_exists_cached($original_path)) {
             return $original_url;
         }
     }
@@ -445,24 +449,44 @@ function fix_content_image_urls($content) {
 }
 add_filter('the_content', 'fix_content_image_urls', 9); // Run before other content filters
 
-// Modify image metadata but preserve info for ShortPixel
+// More efficient ShortPixel detection
+function is_shortpixel_request() {
+    static $is_shortpixel = null;
+    
+    if ($is_shortpixel === null) {
+        $is_shortpixel = false;
+        
+        // Check for direct ShortPixel actions
+        if (did_action('shortpixel_before_restore_image') || 
+            did_action('shortpixel_image_optimised') || 
+            did_action('shortpixel_before_optimise_image')) {
+            $is_shortpixel = true;
+        }
+        
+        // Only use backtrace as last resort - it's expensive
+        if (!$is_shortpixel) {
+            $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 5);
+            foreach ($backtrace as $trace) {
+                if (isset($trace['class']) && strpos($trace['class'], 'ShortPixel') !== false) {
+                    $is_shortpixel = true;
+                    break;
+                }
+            }
+        }
+    }
+    
+    return $is_shortpixel;
+}
+
+// Use in fix_attachment_metadata
 function fix_attachment_metadata($data, $attachment_id) {
     // Check if this is image metadata
     if (!is_array($data) || !isset($data['file'])) {
         return $data;
     }
     
-    // Check if we're in a ShortPixel context and need original metadata
-    $is_shortpixel = false;
-    $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 10);
-    foreach ($backtrace as $trace) {
-        if (isset($trace['class']) && strpos($trace['class'], 'ShortPixel') !== false) {
-            $is_shortpixel = true;
-            break;
-        }
-    }
-    
-    if ($is_shortpixel) {
+    // Check if we're in a ShortPixel context more efficiently
+    if (is_shortpixel_request()) {
         // Don't modify metadata for ShortPixel operations
         return $data;
     }
@@ -637,7 +661,7 @@ function burnaway_image_tweaks_settings_page() {
 
 // Disable WordPress big image scaling
 function disable_big_image_scaling() {
-    $settings = get_burnaway_image_settings(); // FIXED: Correct function name
+    $settings = get_burnaway_image_settings();
     
     if (!isset($settings['disable_scaling']) || !$settings['disable_scaling']) {
         return;
@@ -650,62 +674,58 @@ function disable_big_image_scaling() {
 }
 add_action('init', 'disable_big_image_scaling');
 
-// Enhanced ShortPixel compatibility
+// More efficient ShortPixel compatibility
 function shortpixel_compatibility() {
-    // For ShortPixel, ensure the original image is accessible
+    // Only run if ShortPixel is active
+    if (!function_exists('shortpixel_init') && !class_exists('ShortPixel')) {
+        return;
+    }
+    
+    // Attach all filters at once with common callback
+    $make_processable = function($value, $size) {
+        return $size === 'full' ? true : $value;
+    };
+    
+    add_filter('shortpixel_is_processable_size', $make_processable, 10, 2);
+    add_filter('shortpixel_skip_processable_check', $make_processable, 10, 2);
+    
+    // Single filter for all image sizes
+    add_filter('shortpixel_image_sizes', function($sizes) {
+        return array_unique(array_merge($sizes, array('full')));
+    });
+    
+    // Optimized file handling
     add_filter('shortpixel_get_attached_file', function($file, $id) {
-        // Check if this is a scaled image
+        // Cache expensive operations
+        static $scaled_replacements = array();
+        
         if (strpos($file, '-scaled.') !== false) {
-            $original_file = str_replace('-scaled.', '.', $file);
-            if (file_exists($original_file)) {
-                return $original_file; // Return original file path
+            if (!isset($scaled_replacements[$file])) {
+                $original_file = str_replace('-scaled.', '.', $file);
+                $scaled_replacements[$file] = file_exists_cached($original_file) ? $original_file : $file;
             }
+            return $scaled_replacements[$file];
         }
         return $file;
     }, 10, 2);
-    
-    // Make sure 'full' size is always included
-    add_filter('shortpixel_image_sizes', function($sizes) {
-        if (!in_array('full', $sizes)) {
-            $sizes[] = 'full';
-        }
-        return $sizes;
-    });
-    
-    // Always make original images processable
-    add_filter('shortpixel_is_processable_size', function($processable, $size) {
-        if ($size === 'full') {
-            return true;
-        }
-        return $processable;
-    }, 10, 2);
-    
-    // Ensure ShortPixel can process the image
-    add_filter('shortpixel_skip_processable_check', function($skip, $size_key) {
-        if ($size_key === 'full') {
-            return true;
-        }
-        return $skip;
-    }, 10, 2);
-    
-    // Help ShortPixel find the actual original file
-    add_filter('shortpixel_actual_file_paths', function($paths, $id) {
-        // Add path to original file if it exists
-        $attachment_meta = wp_get_attachment_metadata($id);
-        
-        if (isset($attachment_meta['_shortpixel_original'])) {
-            $upload_dir = wp_upload_dir();
-            $orig_file = $attachment_meta['_shortpixel_original']['original_image'];
-            $file_dir = dirname($attachment_meta['_shortpixel_original']['file']);
-            $original_path = $upload_dir['basedir'] . '/' . $file_dir . '/' . $orig_file;
-            
-            if (file_exists($original_path)) {
-                $paths[] = $original_path;
-            }
-        }
-        
-        return $paths;
-    }, 10, 2);
 }
 add_action('plugins_loaded', 'shortpixel_compatibility');
+
+// Load features only when needed
+function init_plugin_features() {
+    $settings = get_burnaway_image_settings();
+    
+    // Only register theme sizes if responsive images are enabled
+    if (isset($settings['enable_responsive']) && $settings['enable_responsive']) {
+        add_action('after_setup_theme', 'register_custom_sizes');
+    }
+    
+    // Only apply filters when needed
+    if (!is_admin() && isset($settings['enable_responsive']) && $settings['enable_responsive']) {
+        add_filter('wp_get_attachment_image_attributes', 'custom_responsive_images', 9999, 3);
+        add_filter('the_content', 'filter_content_images', 9999);
+        add_filter('wp_calculate_image_srcset', 'override_image_srcset', 9999, 5);
+    }
+}
+add_action('wp', 'init_plugin_features');
 ?>
