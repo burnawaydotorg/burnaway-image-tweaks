@@ -4,7 +4,7 @@ Plugin Name: Burnaway Image Tweaks
 Description: Custom features for Burnaway. Optimize image delivery with Fastly CDN while disabling WordPress's default image processing for improved performance and quality.
 
 Author: brandon sheats
-Version: 1.9
+Version: 2.0
 */
 
 // Include debug tools if WP_DEBUG is enabled
