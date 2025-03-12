@@ -22,6 +22,8 @@ function get_burnaway_image_settings() {
             'disable_compression' => true,
             'enable_responsive' => true,
             'disable_scaling' => true,
+            'enable_lazy_loading' => true,  // Add lazy loading option
+            'enable_async_decoding' => true, // Add async decoding option
             'quality' => 90,
             'formats' => array('auto'),
         );
@@ -52,6 +54,8 @@ function burnaway_image_tweaks_activate() {
             'disable_compression' => true,
             'enable_responsive' => true,
             'disable_scaling' => true,
+            'enable_lazy_loading' => true,  // Add lazy loading option
+            'enable_async_decoding' => true, // Add async decoding option
             'quality' => 90,
             'formats' => array('auto'),
         ));
@@ -184,6 +188,18 @@ function custom_responsive_images($attr, $attachment, $size) {
         'w1000' => 1000
     );
     
+    // Get settings once
+    $settings = get_burnaway_image_settings();
+    
+    // Add lazy loading and async attributes if enabled
+    if (isset($settings['enable_lazy_loading']) && $settings['enable_lazy_loading']) {
+        $attr['loading'] = 'lazy';
+    }
+    
+    if (isset($settings['enable_async_decoding']) && $settings['enable_async_decoding']) {
+        $attr['decoding'] = 'async';
+    }
+    
     // Early return if not a theme size and no optimization needed
     if (!isset($theme_size_widths[$size]) && (!is_array($size) || empty($size))) {
         // Handle non-theme sizes with original function
@@ -300,13 +316,25 @@ function filter_content_images($content) {
     $formats = isset($settings['formats']) && is_array($settings['formats']) ? $settings['formats'] : array('auto');
     $format = !empty($formats) ? $formats[0] : 'auto';
     
+    // Prepare lazy loading and async attributes
+    $lazy_loading = (isset($settings['enable_lazy_loading']) && $settings['enable_lazy_loading']) ? ' loading="lazy"' : '';
+    $async_decoding = (isset($settings['enable_async_decoding']) && $settings['enable_async_decoding']) ? ' decoding="async"' : '';
+    
     // Single regex to handle both scaled image replacement and srcset addition
     return preg_replace_callback(
         '/<img(.*?)src=[\'"](.*?)[\'"](.*?)>/i',
-        function($matches) use ($quality, $format) {
+        function($matches) use ($quality, $format, $lazy_loading, $async_decoding) {
             $img_attrs = $matches[1];
             $src = $matches[2];
             $after_src = $matches[3];
+            
+            // Skip if already has lazy loading or async attributes
+            $has_lazy = (strpos($img_attrs . $after_src, 'loading=') !== false);
+            $has_async = (strpos($img_attrs . $after_src, 'decoding=') !== false);
+            
+            // Add attributes only if they don't already exist
+            $lazy_attr = (!$has_lazy) ? $lazy_loading : '';
+            $async_attr = (!$has_async) ? $async_decoding : '';
             
             // Handle scaled images - do this first
             if (strpos($src, '-scaled.') !== false) {
@@ -324,7 +352,7 @@ function filter_content_images($content) {
             
             // Skip if already processed
             if (strpos($src, 'format=') !== false) {
-                return $matches[0];
+                return str_replace('>', $lazy_attr . $async_attr . '>', $matches[0]);
             }
             
             // Add Fastly parameters
@@ -342,10 +370,10 @@ function filter_content_images($content) {
                 $srcset_attr = ' srcset="' . implode(', ', $srcset) . '"';
                 $sizes_attr = ' sizes="(max-width: 1920px) 100vw, 1920px"';
                 
-                return "<img{$img_attrs}src=\"{$new_src}\"{$after_src}{$srcset_attr}{$sizes_attr}>";
+                return "<img{$img_attrs}src=\"{$new_src}\"{$after_src}{$srcset_attr}{$sizes_attr}{$lazy_attr}{$async_attr}>";
             }
             
-            return "<img{$img_attrs}src=\"{$new_src}\"{$after_src}>";
+            return "<img{$img_attrs}src=\"{$new_src}\"{$after_src}{$lazy_attr}{$async_attr}>";
         },
         $content
     );
@@ -543,6 +571,8 @@ function burnaway_image_tweaks_register_settings() {
         'disable_compression' => true,
         'enable_responsive' => true,
         'disable_scaling' => true,
+        'enable_lazy_loading' => true,  // Add lazy loading option
+        'enable_async_decoding' => true, // Add async decoding option
         'quality' => 90,
         'formats' => array('auto'),
     );
@@ -590,6 +620,16 @@ function burnaway_image_tweaks_settings_page() {
                             <label for="disable_scaling">
                                 <input name="burnaway_image_tweaks_settings[disable_scaling]" type="checkbox" id="disable_scaling" value="1" <?php checked('1', isset($settings['disable_scaling']) ? $settings['disable_scaling'] : false); ?>>
                                 Disable WordPress image scaling (use original images)
+                            </label><br>
+                            
+                            <label for="enable_lazy_loading">
+                                <input name="burnaway_image_tweaks_settings[enable_lazy_loading]" type="checkbox" id="enable_lazy_loading" value="1" <?php checked('1', isset($settings['enable_lazy_loading']) ? $settings['enable_lazy_loading'] : false); ?>>
+                                Enable lazy loading (loading="lazy")
+                            </label><br>
+
+                            <label for="enable_async_decoding">
+                                <input name="burnaway_image_tweaks_settings[enable_async_decoding]" type="checkbox" id="enable_async_decoding" value="1" <?php checked('1', isset($settings['enable_async_decoding']) ? $settings['enable_async_decoding'] : false); ?>>
+                                Enable async decoding (decoding="async")
                             </label><br>
                             
                             <p class="description">Control how WordPress processes and serves images.</p>
@@ -652,6 +692,7 @@ function burnaway_image_tweaks_settings_page() {
                 <li>Disabling WordPress's default image compression</li>
                 <li>Using Fastly's image optimization for responsive images</li>
                 <li>Ensuring original uploaded images are used instead of scaled versions</li>
+                <li>Adding lazy loading and async decoding for better performance</li>
             </ol>
             <p><strong>Note:</strong> This plugin works best when your site is behind Fastly or a similar CDN that supports image optimization parameters.</p>
         </div>

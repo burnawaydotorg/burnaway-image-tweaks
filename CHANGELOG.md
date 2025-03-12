@@ -1,5 +1,14 @@
 # Changelog for Burnaway Image Tweaks
 
+## Version 2.1.1 (March 12, 2025)
+
+- Added support for lazy loading images (loading="lazy")
+- Added support for async image decoding (decoding="async")
+- Added settings to toggle lazy loading and async decoding
+- Updated settings UI with new options
+- Added settings descriptions for the new features
+- Updated How It Works section with new features
+
 ## Version 2.1 (March 11, 2025)
 
 - Significant performance optimizations across all plugin functions
