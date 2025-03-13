@@ -6,7 +6,7 @@
  * This file provides the foundation for all other plugin components.
  *
  * @package BurnawayImages
- * @since 2.2.0
+ * @since 2.3.0
  */
 
 // Prevent direct access
@@ -60,6 +60,7 @@ function burnaway_images_get_settings() {
         'disable_scaling' => true,
         'enable_lazy_loading' => true,
         'enable_async_decoding' => true,
+        'enable_media_replace' => true,
         'quality' => 90,
         'formats' => array('auto'),
         'responsive_sizes' => '192, 340, 480, 540, 768, 1000, 1024, 1440, 1920',

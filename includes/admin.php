@@ -131,6 +131,12 @@ function burnaway_images_settings_page() {
                                 <input name="burnaway_images_settings[enable_async_decoding]" type="checkbox" id="enable_async_decoding" value="1" <?php checked('1', isset($settings['enable_async_decoding']) ? $settings['enable_async_decoding'] : false); ?>>
                                 Enable async decoding (decoding="async")
                             </label><br>
+
+                            <label for="enable_media_replace">
+                                <input name="burnaway_images_settings[enable_media_replace]" type="checkbox" id="enable_media_replace" value="1" <?php checked('1', isset($settings['enable_media_replace']) ? $settings['enable_media_replace'] : false); ?>>
+                                Enable media replacement functionality
+                            </label><br>
+                            <p class="description">Allows replacing media files while keeping the same attachment ID. Compatible with WP Offload Media.</p>
                             
                             <p class="description">Control how WordPress processes and serves images.</p>
                         </fieldset>

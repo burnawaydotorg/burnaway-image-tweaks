@@ -1,5 +1,23 @@
 # Changelog
 
+## 2.3.0 - 2025-03-15
+
+### New Features
+
+- **Media Replacement**: Added ability to replace media files while maintaining the same attachment ID
+- Option to append timestamp to replaced files to avoid caching issues
+- Full compatibility with WP Offload Media for cloud storage
+- Complete integration with ShortPixel Image Optimizer for automatic optimization of replaced images
+- Built-in handling for cleaning up old thumbnails after replacement
+- Simple interface integrated into WordPress media library
+
+### Improvements
+
+- Added media replacement option to the settings page
+- Enhanced attachment edit screen with replace media button
+- Added documentation for new media replacement feature
+- Automatic detection and cleanup of ShortPixel backup files during media replacement
+
 ## 2.2.1 - 2025-03-14
 
 ### Improvements
