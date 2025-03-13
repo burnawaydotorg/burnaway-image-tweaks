@@ -1,5 +1,14 @@
 # Changelog for Burnaway Image Tweaks
 
+## Version 2.1.2 (March 12, 2025)
+
+- Added customizable responsive sizes via admin settings
+- Removed caching functions to fix page generation issues
+- Improved compatibility with page builders and dynamic content
+- Added input field for comma-separated responsive image widths
+- Updated responsive image generation to use custom widths
+- Fixed potential stale data issues when editing images
+
 ## Version 2.1.1 (March 12, 2025)
 
 - Added support for lazy loading images (loading="lazy")

@@ -4,7 +4,7 @@ Plugin Name: Burnaway Image Tweaks
 Description: Custom features for Burnaway. Optimize image delivery with Fastly CDN while disabling WordPress's default image processing for improved performance and quality.
 
 Author: brandon sheats
-Version: 2.0.1
+Version: 2.1.2
 */
 
 // Include debug tools if WP_DEBUG is enabled
@@ -12,37 +12,26 @@ if (defined('WP_DEBUG') && WP_DEBUG) {
     require_once plugin_dir_path(__FILE__) . 'debug-tools.php';
 }
 
-// Cache settings to avoid repeated options queries
+// Remove caching from settings function
 function get_burnaway_image_settings() {
-    static $settings = null;
+    $defaults = array(
+        'disable_thumbnails' => true,
+        'disable_compression' => true,
+        'enable_responsive' => true,
+        'disable_scaling' => true,
+        'enable_lazy_loading' => true,
+        'enable_async_decoding' => true,
+        'quality' => 90,
+        'formats' => array('auto'),
+        'responsive_sizes' => '192, 340, 480, 540, 768, 1000, 1024, 1440, 1920', // Add default responsive sizes
+    );
     
-    if ($settings === null) {
-        $defaults = array(
-            'disable_thumbnails' => true,
-            'disable_compression' => true,
-            'enable_responsive' => true,
-            'disable_scaling' => true,
-            'enable_lazy_loading' => true,  // Add lazy loading option
-            'enable_async_decoding' => true, // Add async decoding option
-            'quality' => 90,
-            'formats' => array('auto'),
-        );
-        
-        $settings = get_option('burnaway_image_tweaks_settings', $defaults);
-    }
-    
-    return $settings;
+    return get_option('burnaway_image_tweaks_settings', $defaults);
 }
 
-// Cache upload directory info
-function get_cached_upload_dir() {
-    static $upload_dir = null;
-    
-    if ($upload_dir === null) {
-        $upload_dir = wp_upload_dir();
-    }
-    
-    return $upload_dir;
+// Remove caching from upload directory function
+function get_upload_dir() {
+    return wp_upload_dir();
 }
 
 // Hook to run on plugin activation
@@ -54,10 +43,11 @@ function burnaway_image_tweaks_activate() {
             'disable_compression' => true,
             'enable_responsive' => true,
             'disable_scaling' => true,
-            'enable_lazy_loading' => true,  // Add lazy loading option
-            'enable_async_decoding' => true, // Add async decoding option
+            'enable_lazy_loading' => true,
+            'enable_async_decoding' => true,
             'quality' => 90,
             'formats' => array('auto'),
+            'responsive_sizes' => '192, 340, 480, 540, 768, 1000, 1024, 1440, 1920',
         ));
     }
 }
@@ -125,46 +115,45 @@ function should_apply_responsive_images() {
     return true;
 }
 
-// Improved get_original_image_url function with caching
+// Remove caching from original image URL function
 function get_original_image_url($attachment_id) {
-    static $cache = array();
-    
-    if (isset($cache[$attachment_id])) {
-        return $cache[$attachment_id];
-    }
-    
-    $upload_dir = get_cached_upload_dir();
+    $upload_dir = wp_upload_dir();
     $metadata = wp_get_attachment_metadata($attachment_id);
     
     // First check if there's an original_image (WordPress scaled the image)
     if (isset($metadata['original_image']) && isset($metadata['file'])) {
         $file_dir = dirname($metadata['file']);
         $original_file = $file_dir === '.' ? $metadata['original_image'] : $file_dir . '/' . $metadata['original_image'];
-        $cache[$attachment_id] = $upload_dir['baseurl'] . '/' . $original_file;
-        return $cache[$attachment_id];
+        return $upload_dir['baseurl'] . '/' . $original_file;
     }
     
     // Otherwise use the regular file path
     if (isset($metadata['file'])) {
-        $cache[$attachment_id] = $upload_dir['baseurl'] . '/' . $metadata['file'];
-        return $cache[$attachment_id];
+        return $upload_dir['baseurl'] . '/' . $metadata['file'];
     }
     
     // Fallback to standard function
-    $cache[$attachment_id] = wp_get_attachment_url($attachment_id);
-    return $cache[$attachment_id];
+    return wp_get_attachment_url($attachment_id);
 }
 
-// Define responsive sizes once
+// Get responsive sizes from settings
 function get_responsive_sizes() {
-    static $sizes = array(340, 480, 540, 768, 1024, 1440, 1920);
+    $settings = get_burnaway_image_settings();
+    $size_string = isset($settings['responsive_sizes']) ? $settings['responsive_sizes'] : '192, 340, 480, 540, 768, 1000, 1024, 1440, 1920';
+    
+    // Convert string to array, clean up values
+    $sizes = array_map('intval', array_map('trim', explode(',', $size_string)));
+    
+    // Sort sizes and remove duplicates
+    $sizes = array_unique($sizes);
+    sort($sizes);
+    
     return $sizes;
 }
 
-// Define theme sizes once
+// Update theme sizes function to remove caching
 function get_theme_sizes() {
-    static $sizes = array('w192', 'w340', 'w540', 'w768', 'w1000');
-    return $sizes;
+    return array('w192', 'w340', 'w540', 'w768', 'w1000');
 }
 
 // Cache attachment metadata
@@ -340,8 +329,8 @@ function filter_content_images($content) {
             if (strpos($src, '-scaled.') !== false) {
                 $original_url = str_replace('-scaled.', '.', $src);
                 $original_path = str_replace(
-                    get_cached_upload_dir()['baseurl'], 
-                    get_cached_upload_dir()['basedir'], 
+                    get_upload_dir()['baseurl'], 
+                    get_upload_dir()['basedir'], 
                     $original_url
                 );
                 
@@ -437,22 +426,16 @@ function use_original_images($image, $attachment_id, $size, $icon) {
 }
 add_filter('wp_get_attachment_image_src', 'use_original_images', 10, 4);
 
-// Cache file existence checks
+// Remove caching from file_exists_cached function
 function file_exists_cached($path) {
-    static $cache = array();
-    
-    if (!isset($cache[$path])) {
-        $cache[$path] = file_exists($path);
-    }
-    
-    return $cache[$path];
+    return file_exists($path);
 }
 
 // Fix attachment URLs to use original images instead of -scaled versions
 function fix_attachment_urls($url, $attachment_id) {
     if (strpos($url, '-scaled.') !== false) {
         $original_url = str_replace('-scaled.', '.', $url);
-        $original_path = str_replace(get_cached_upload_dir()['baseurl'], get_cached_upload_dir()['basedir'], $original_url);
+        $original_path = str_replace(get_upload_dir()['baseurl'], get_upload_dir()['basedir'], $original_url);
         
         if (file_exists_cached($original_path)) {
             return $original_url;
@@ -575,6 +558,7 @@ function burnaway_image_tweaks_register_settings() {
         'enable_async_decoding' => true, // Add async decoding option
         'quality' => 90,
         'formats' => array('auto'),
+        'responsive_sizes' => '192, 340, 480, 540, 768, 1000, 1024, 1440, 1920',
     );
     
     // If settings don't exist, create them
@@ -679,6 +663,16 @@ function burnaway_image_tweaks_settings_page() {
                         <p class="description">To customize these sizes, you'll need to modify the code directly in the plugin.</p>
                     </td>
                 </tr>
+                <tr valign="top">
+                    <th scope="row"><label for="responsive_sizes">Responsive Sizes</label></th>
+                    <td>
+                        <input name="burnaway_image_tweaks_settings[responsive_sizes]" type="text" id="responsive_sizes" 
+                               value="<?php echo esc_attr(isset($settings['responsive_sizes']) ? $settings['responsive_sizes'] : '192, 340, 480, 540, 768, 1000, 1024, 1440, 1920'); ?>" 
+                               class="regular-text">
+                        <p class="description">Comma-separated list of widths (in pixels) for responsive images.</p>
+                        <p>Theme-specific widths (192, 340, 540, 768, 1000) are automatically respected when directly requested.</p>
+                    </td>
+                </tr>
             </table>
             
             <?php submit_button(); ?>
@@ -769,4 +763,9 @@ function init_plugin_features() {
     }
 }
 add_action('wp', 'init_plugin_features');
+
+// Remove caching from attachment metadata function
+function get_attachment_metadata($attachment_id) {
+    return wp_get_attachment_metadata($attachment_id);
+}
 ?>
