@@ -148,14 +148,14 @@ function burnaway_images_get_attachment_metadata($attachment_id) {
 }
 
 /**
- * Get original image URL
+ * Get original image URL with fallback
  *
- * Retrieves the URL to the original image, bypassing any WordPress scaled versions.
- * If WordPress scaled the image, returns the URL to the pre-scaled version.
+ * Retrieves the URL to the original image, bypassing WordPress scaled versions when possible.
+ * Falls back to scaled version if original is not available.
  *
- * @since 2.0.0
+ * @since 2.2.1
  * @param int $attachment_id Attachment ID
- * @return string URL to the original image
+ * @return string URL to the best available image
  */
 function burnaway_images_get_original_url($attachment_id) {
     $upload_dir = wp_upload_dir();
@@ -165,14 +165,24 @@ function burnaway_images_get_original_url($attachment_id) {
     if (isset($metadata['original_image']) && isset($metadata['file'])) {
         $file_dir = dirname($metadata['file']);
         $original_file = $file_dir === '.' ? $metadata['original_image'] : $file_dir . '/' . $metadata['original_image'];
-        return $upload_dir['baseurl'] . '/' . $original_file;
+        $original_path = $upload_dir['basedir'] . '/' . $original_file;
+        
+        // Check if original file actually exists
+        if (burnaway_images_file_exists($original_path)) {
+            return $upload_dir['baseurl'] . '/' . $original_file;
+        }
+        
+        // Original doesn't exist, log if debugging
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('Burnaway Images: Original image not found, using scaled version: ' . $original_path);
+        }
     }
     
-    // Otherwise use the regular file path
+    // Use the regular file path (which might be the scaled version)
     if (isset($metadata['file'])) {
         return $upload_dir['baseurl'] . '/' . $metadata['file'];
     }
     
-    // Fallback to standard function
+    // Final fallback to standard function
     return wp_get_attachment_url($attachment_id);
 }

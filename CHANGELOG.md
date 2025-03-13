@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.2.1 - 2025-03-14
+
+### Improvements
+
+- Added fallback mechanism for missing original image files
+- Plugin now gracefully handles cases where original (pre-scaled) files aren't available
+- Enhanced file existence checking for more robust operation
+- Added debug logging for missing original files when WP_DEBUG is enabled
+
+### Bug Fixes
+
+- Fixed potential 404 errors when original image files were deleted or unavailable
+- Improved compatibility with sites where image management has been inconsistent
+
 ## 2.2.0 - 2025-03-13
 
 ### Major Changes
