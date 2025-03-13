@@ -1,4 +1,36 @@
-# Changelog for Burnaway Image Tweaks
+# Changelog
+
+## 2.2.0 - 2025-03-13
+
+### Major Changes
+
+- **Plugin Renamed**: Renamed from "Burnaway Image Tweaks" to "Burnaway Images" for better clarity
+- **Complete Code Refactoring**: Restructured the entire plugin into a modular architecture
+- **Improved Documentation**: Completely rewrote code comments for better developer understanding
+
+### Architecture Improvements
+
+- Split monolithic plugin into separate functional components:
+  - `core.php`: Central settings and utility functions
+  - `admin.php`: Admin interface and settings management
+  - `image-processing.php`: WordPress image processing modifications
+  - `responsive-images.php`: Fastly responsive image implementation
+  - `compatibility.php`: Third-party plugin compatibility (ShortPixel)
+
+### Additional Improvements
+
+- Added settings migration from old plugin name to new name
+- Enhanced function documentation with detailed parameter and return value descriptions
+- Improved code organization with logical function grouping
+- Optimized attachment metadata handling with efficient caching
+- Better theme-specific image size handling
+- Added comprehensive developer notes throughout the codebase
+
+### Bug Fixes
+
+- Fixed potential conflicts with ShortPixel image processing
+- Improved scaled image detection and correction
+- More reliable original image URL generation
 
 ## Version 2.1.2 (March 12, 2025)
 
