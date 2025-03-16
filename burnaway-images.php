@@ -25,15 +25,10 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('BURNAWAY_IMAGES_VERSION', '2.1.2');
+define('BURNAWAY_IMAGES_VERSION', '2.3');
 define('BURNAWAY_IMAGES_PATH', plugin_dir_path(__FILE__));
 define('BURNAWAY_IMAGES_URL', plugin_dir_url(__FILE__));
 define('BURNAWAY_IMAGES_BASENAME', plugin_basename(__FILE__));
-
-// Include debug tools if WP_DEBUG is enabled
-if (defined('WP_DEBUG') && WP_DEBUG) {
-    require_once BURNAWAY_IMAGES_PATH . 'debug-tools.php';
-}
 
 // Include required files
 require_once BURNAWAY_IMAGES_PATH . 'includes/core.php';
@@ -41,6 +36,11 @@ require_once BURNAWAY_IMAGES_PATH . 'includes/image-processing.php';
 require_once BURNAWAY_IMAGES_PATH . 'includes/responsive-images.php';
 require_once BURNAWAY_IMAGES_PATH . 'includes/compatibility.php';
 require_once BURNAWAY_IMAGES_PATH . 'includes/media-replace.php';
+
+// Include debug tools if WP_DEBUG is enabled (MOVED AFTER required files)
+if (defined('WP_DEBUG') && WP_DEBUG) {
+    require_once BURNAWAY_IMAGES_PATH . 'debug-tools.php';
+}
 
 // Load admin functionality only in admin area
 if (is_admin()) {

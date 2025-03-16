@@ -18,6 +18,11 @@
 - Added documentation for new media replacement feature
 - Automatic detection and cleanup of ShortPixel backup files during media replacement
 
+### Bug Fixes
+
+- Add `should_apply_responsive_images()` check based on settings in WP admin.
+- Moved debug-tools.php call to fire after main plugin functions.
+
 ## 2.2.1 - 2025-03-14
 
 ### Improvements
