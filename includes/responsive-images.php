@@ -54,6 +54,21 @@ function burnaway_images_should_apply_responsive() {
 }
 
 /**
+ * Check if responsive images should be applied based on plugin settings
+ *
+ * @return bool Whether responsive images should be applied
+ */
+function should_apply_responsive_images() {
+    $settings = get_option('burnaway_images_settings', array());
+    
+    // Default to true if setting doesn't exist
+    $enable_responsive = isset($settings['enable_responsive']) ? (bool)$settings['enable_responsive'] : true;
+    
+    // Allow filtering the result
+    return apply_filters('burnaway_should_apply_responsive_images', $enable_responsive);
+}
+
+/**
  * Apply responsive images filters
  * 
  * Applies all filters needed for responsive image handling
