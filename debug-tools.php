@@ -10,7 +10,7 @@ function test_filter_registration() {
     add_action('wp_footer', function() {
         global $wp_filter;
         echo '<!-- Filters registered: ' . 
-             (has_filter('wp_get_attachment_image_attributes', 'custom_responsive_images') ? 'YES' : 'NO') . 
+             (has_filter('wp_get_attachment_image_attributes', 'burnaway_images_custom_responsive_attributes') ? 'YES' : 'NO') . 
              ' -->';
         echo '<!-- Content filter registered: ' . 
              (has_filter('the_content', 'burnaway_images_filter_content_images') ? 'YES' : 'NO') . 
@@ -36,9 +36,9 @@ function debug_srcset() {
         echo '<script>console.log("Test image ID: ' . $img_id . '");</script>';
         echo '<script>console.log("Test image URL: ' . $img_url . '");</script>';
         
-        // Test our filter directly
+        // Test our filter directly - UPDATED FUNCTION NAME
         $attr = array();
-        $result = custom_responsive_images($attr, $recent_img[0], 'full');
+        $result = burnaway_images_custom_responsive_attributes($attr, $recent_img[0], 'full');
         echo '<script>console.log("Filter result:", ' . json_encode($result) . ');</script>';
         
         // Check what WordPress generates
