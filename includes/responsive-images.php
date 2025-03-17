@@ -126,56 +126,62 @@ function burnaway_images_custom_responsive_attributes($attr, $attachment, $size)
         $attr['decoding'] = 'async';
     }
     
-    // Early return if not a theme size and no optimization needed
-    if (!isset($theme_size_widths[$size]) && (!is_array($size) || empty($size))) {
-        return $attr;
-    }
-    
-    // Get image parameters
-    $quality = isset($settings['quality']) ? intval($settings['quality']) : 90;
-    $formats = isset($settings['formats']) && is_array($settings['formats']) ? $settings['formats'] : array('auto');
-    $format = !empty($formats) ? $formats[0] : 'auto';
-    
-    // Handle theme size
-    $width = $theme_size_widths[$size];
-    $src = burnaway_images_get_original_url($attachment->ID);
-    
-    // Special case for w192 - smart cropping
-    if ($size === 'w192') {
-        $attr['src'] = "{$src}?width=192&height=336&fit=crop&crop=smart&format={$format}&quality={$quality}";
-        unset($attr['srcset']);
-        return $attr;
-    }
-    
-    // For other theme sizes
-    $attr['src'] = "{$src}?width={$width}&format={$format}&quality={$quality}";
-    
-    // Build srcset efficiently
-    $image_meta = burnaway_images_get_attachment_metadata($attachment->ID);
-    if ($image_meta && isset($image_meta['width'])) {
-        $orig_width = intval($image_meta['width']);
-        $srcset = array();
+    // Handle different types of size parameter
+    if (is_string($size)) {
+        // Check if it's a theme size
+        if (!isset($theme_size_widths[$size])) {
+            return $attr;
+        }
         
-        // Get responsive sizes once
-        $responsive_sizes = burnaway_images_get_responsive_sizes();
+        $width = $theme_size_widths[$size];
+        $src = burnaway_images_get_original_url($attachment->ID);
         
-        // Generate srcset entries
-        foreach ($responsive_sizes as $size_width) {
-            if ($orig_width - $size_width >= 50) {
-                $srcset[] = "{$src}?width={$size_width}&format={$format}&quality={$quality} {$size_width}w";
+        // Get image parameters
+        $quality = isset($settings['quality']) ? intval($settings['quality']) : 90;
+        $formats = isset($settings['formats']) && is_array($settings['formats']) ? $settings['formats'] : array('auto');
+        $format = !empty($formats) ? $formats[0] : 'auto';
+        
+        // Special case for w192 - smart cropping
+        if ($size === 'w192') {
+            $attr['src'] = "{$src}?width=192&height=336&fit=crop&crop=smart&format={$format}&quality={$quality}";
+            unset($attr['srcset']);
+            return $attr;
+        }
+        
+        // For other theme sizes
+        $attr['src'] = "{$src}?width={$width}&format={$format}&quality={$quality}";
+        
+        // Build srcset efficiently
+        $image_meta = burnaway_images_get_attachment_metadata($attachment->ID);
+        if ($image_meta && isset($image_meta['width'])) {
+            $orig_width = intval($image_meta['width']);
+            $srcset = array();
+            
+            // Get responsive sizes once
+            $responsive_sizes = burnaway_images_get_responsive_sizes();
+            
+            // Generate srcset entries
+            foreach ($responsive_sizes as $size_width) {
+                if ($orig_width - $size_width >= 50) {
+                    $srcset[] = "{$src}?width={$size_width}&format={$format}&quality={$quality} {$size_width}w";
+                }
+            }
+            
+            // Add original size if needed
+            if ($orig_width > 0) {
+                $srcset[] = "{$src}?format={$format}&quality={$quality} {$orig_width}w";
+            }
+            
+            // Set srcset if we have entries
+            if (!empty($srcset)) {
+                $attr['srcset'] = implode(', ', $srcset);
+                $attr['sizes'] = "(max-width: {$width}px) 100vw, {$width}px";
             }
         }
-        
-        // Add original size if needed
-        if ($orig_width > 0) {
-            $srcset[] = "{$src}?format={$format}&quality={$quality} {$orig_width}w";
-        }
-        
-        // Set srcset if we have entries
-        if (!empty($srcset)) {
-            $attr['srcset'] = implode(', ', $srcset);
-            $attr['sizes'] = "(max-width: {$width}px) 100vw, {$width}px";
-        }
+    } else if (is_array($size) && !empty($size)) {
+        // Handle array size (width, height)
+        // Just return with lazy loading/async attributes already applied
+        return $attr;
     }
     
     return $attr;
