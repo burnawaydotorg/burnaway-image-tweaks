@@ -68,21 +68,25 @@ function should_apply_responsive_images() {
 }
 
 /**
- * Apply responsive images filters
- * 
- * Applies all filters needed for responsive image handling
- * based on plugin settings and current context.
- *
- * @since 2.1.0
+ * Apply responsive filters based on settings
  */
 function burnaway_images_apply_responsive_filters() {
+    // Get settings
     $settings = burnaway_images_get_settings();
     
-    // Only apply if responsive images are enabled and should be applied
-    if (isset($settings['enable_responsive']) && $settings['enable_responsive'] && burnaway_images_should_apply_responsive()) {
-        add_filter('wp_get_attachment_image_attributes', 'burnaway_images_custom_responsive_attributes', 9999, 3);
-        add_filter('the_content', 'burnaway_images_filter_content_images', 9999);
-        add_filter('wp_calculate_image_srcset', 'burnaway_images_override_srcset', 9999, 5);
+    // Only apply filters if responsive images are enabled
+    if (isset($settings['enable_responsive']) && $settings['enable_responsive']) {
+        // First check if this should apply to the current context
+        if (burnaway_images_should_apply_responsive()) {
+            // Add image attribute filter
+            add_filter('wp_get_attachment_image_attributes', 'burnaway_images_custom_responsive_attributes', 10, 3);
+            
+            // Add content filter
+            add_filter('the_content', 'burnaway_images_filter_content_images', 20);
+            
+            // Disable core responsive images if we're handling it
+            add_filter('wp_calculate_image_srcset', '__return_empty_array');
+        }
     }
 }
 

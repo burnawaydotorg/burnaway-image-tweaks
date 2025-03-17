@@ -20,23 +20,18 @@ if (!defined('ABSPATH')) {
  * @since 2.3.0
  */
 function burnaway_images_media_replace_init() {
+    // Check if media replace is enabled in settings
     $settings = burnaway_images_get_settings();
     
-    if (isset($settings['enable_media_replace']) && $settings['enable_media_replace']) {
-        // Add "Replace Media" link to media list view
-        add_filter('media_row_actions', 'burnaway_images_add_media_action', 10, 2);
-        
-        // Add "Replace Media" link to edit attachment screen
-        add_action('attachment_submitbox_misc_actions', 'burnaway_images_attachment_submitbox_link');
-        
-        // Admin page for replacement form
-        add_action('admin_menu', 'burnaway_images_add_submenu_replace_media');
-        
-        // Handle form submission
-        add_action('admin_init', 'burnaway_images_handle_media_replace');
+    // Only add hooks if enabled (default to enabled if setting doesn't exist)
+    if (!isset($settings['enable_media_replace']) || $settings['enable_media_replace']) {
+        add_action('attachment_submitbox_misc_actions', 'burnaway_images_add_replace_button', 10);
+        add_action('admin_post_burnaway_replace_media', 'burnaway_images_process_replacement');
+        add_action('attachment_submitbox_misc_actions', 'burnaway_images_missing_media_ui', 20);
+        add_action('admin_init', 'burnaway_images_process_missing_media_replacement');
     }
 }
-add_action('init', 'burnaway_images_media_replace_init');
+add_action('admin_init', 'burnaway_images_media_replace_init');
 
 /**
  * Add "Replace Media" action link in media list

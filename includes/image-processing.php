@@ -20,16 +20,22 @@ if (!defined('ABSPATH')) {
  * @since 2.2.0
  */
 function burnaway_images_processing_init() {
-    // Main disabling functions
-    add_action('init', 'burnaway_images_disable_default_sizes');
-    add_filter('intermediate_image_sizes_advanced', 'burnaway_images_disable_sizes');
-    add_filter('jpeg_quality', 'burnaway_images_disable_compression');
-    add_filter('wp_editor_set_quality', 'burnaway_images_disable_compression');
-    add_action('init', 'burnaway_images_maybe_disable_scaling');
-    add_action('init', 'burnaway_images_disable_big_scaling');
+    // Get settings
+    $settings = burnaway_images_get_settings();
     
-    // Register custom sizes if needed
-    add_action('after_setup_theme', 'burnaway_images_register_custom_sizes');
+    // Apply settings based on user configuration
+    if (isset($settings['disable_thumbnails']) && $settings['disable_thumbnails']) {
+        add_filter('intermediate_image_sizes_advanced', 'burnaway_images_disable_thumbnails');
+    }
+    
+    if (isset($settings['disable_compression']) && $settings['disable_compression']) {
+        add_filter('wp_editor_set_quality', 'burnaway_images_set_max_quality');
+        add_filter('jpeg_quality', 'burnaway_images_set_max_quality');
+    }
+    
+    if (isset($settings['disable_scaling']) && $settings['disable_scaling']) {
+        add_filter('big_image_size_threshold', '__return_false');
+    }
 }
 
 /**
