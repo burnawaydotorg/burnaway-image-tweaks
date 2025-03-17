@@ -21,36 +21,39 @@ add_action('init', 'test_filter_registration');
 
 // Enhanced debug function
 function debug_srcset() {
+    // Only run on frontend
+    if (is_admin()) {
+        return;
+    }
+    
     // Output to console for easier reading
     echo '<script>console.log("Image Optimization Debugging Started");</script>';
     
     // Check if responsive images should be applied
-    $should_apply = should_apply_responsive_images();
-    echo '<script>console.log("Should apply responsive images: ' . ($should_apply ? 'Yes' : 'No') . '");</script>';
+    $should_apply = function_exists('burnaway_images_should_apply_responsive') ? 
+        burnaway_images_should_apply_responsive() : 
+        'Function not defined!';
+        
+    echo '<script>console.log("Should apply responsive images: ' . ($should_apply === true ? 'Yes' : 'No') . '");</script>';
     
-    // Find a recent image
+    // Find a recent image with error checking
     $recent_img = get_posts(array('post_type' => 'attachment', 'post_mime_type' => 'image', 'numberposts' => 1));
-    if ($recent_img) {
+    if (!empty($recent_img) && isset($recent_img[0]) && is_object($recent_img[0])) {
         $img_id = $recent_img[0]->ID;
         $img_url = wp_get_attachment_url($img_id);
         echo '<script>console.log("Test image ID: ' . $img_id . '");</script>';
         echo '<script>console.log("Test image URL: ' . $img_url . '");</script>';
         
         // Test our filter directly - UPDATED FUNCTION NAME
-        $attr = array();
-        $result = burnaway_images_custom_responsive_attributes($attr, $recent_img[0], 'full');
-        echo '<script>console.log("Filter result:", ' . json_encode($result) . ');</script>';
-        
-        // Check what WordPress generates
-        $html = wp_get_attachment_image($img_id, 'full');
-        echo '<script>console.log("WP generated HTML: ", `' . str_replace('`', '\`', $html) . '`);</script>';
-    }
-    
-    // Check for filter conflicts
-    global $wp_filter;
-    if (isset($wp_filter['wp_get_attachment_image_attributes'])) {
-        $priorities = array_keys($wp_filter['wp_get_attachment_image_attributes']->callbacks);
-        echo '<script>console.log("Image attributes filter priorities: ", ' . json_encode($priorities) . ');</script>';
+        if (function_exists('burnaway_images_custom_responsive_attributes')) {
+            $attr = array();
+            $result = burnaway_images_custom_responsive_attributes($attr, $recent_img[0], 'full');
+            echo '<script>console.log("Filter result:", ' . json_encode($result) . ');</script>';
+        } else {
+            echo '<script>console.log("Filter function not defined!");</script>';
+        }
+    } else {
+        echo '<script>console.log("No test images found!");</script>';
     }
 }
 add_action('wp_footer', 'debug_srcset');

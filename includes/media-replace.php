@@ -567,32 +567,39 @@ function burnaway_images_process_missing_media_replacement() {
         return;
     }
     
-    // Check nonce
+    // Verify nonce
     if (!isset($_POST['burnaway_missing_media_nonce']) || 
         !wp_verify_nonce($_POST['burnaway_missing_media_nonce'], 'burnaway_replace_missing_media')) {
-        wp_die('Security check failed');
+        wp_die(__('Security check failed', 'burnaway-images'), __('Error', 'burnaway-images'), array('response' => 403));
     }
     
     // Check permissions
     if (!current_user_can('upload_files')) {
-        wp_die('You do not have permission to upload files');
+        wp_die(__('You do not have permission to upload files', 'burnaway-images'), __('Error', 'burnaway-images'), array('response' => 403));
     }
     
+    // Validate attachment ID
     $attachment_id = intval($_POST['attachment_id']);
+    if ($attachment_id <= 0) {
+        wp_die(__('Invalid attachment ID', 'burnaway-images'), __('Error', 'burnaway-images'));
+    }
     
     // Check if file was uploaded
     if (!isset($_FILES['replacement_file']) || $_FILES['replacement_file']['error'] !== 0) {
-        wp_die('No file was uploaded or there was an upload error');
+        $error_message = isset($_FILES['replacement_file']) ? 
+            wp_get_upload_error_string($_FILES['replacement_file']['error']) : 
+            __('No file was uploaded', 'burnaway-images');
+        wp_die($error_message, __('Upload Error', 'burnaway-images'));
     }
     
-    // Process the upload
+    // Process the upload with error handling
     $result = burnaway_images_replace_missing_media($attachment_id, $_FILES['replacement_file']['tmp_name']);
     
     if (is_wp_error($result)) {
-        wp_die($result->get_error_message());
+        wp_die($result->get_error_message(), __('Error', 'burnaway-images'));
     }
     
-    // Redirect back to the attachment edit screen
+    // Redirect back with success message
     wp_redirect(admin_url('post.php?post=' . $attachment_id . '&action=edit&message=1'));
     exit;
 }

@@ -58,20 +58,94 @@ function burnaway_images_get_settings() {
         'enable_media_replace' => true,
         'quality' => 90,
         'formats' => array('auto'),
-        'responsive_sizes' => '192, 340, 480, 540, 768, 1000, 1024, 1440, 1920'
+        'responsive_sizes' => '192, 340, 480, 540, 768, 1000, 1024, 1440, 1920',
+        // New URL template settings
+        'url_template' => '?width={width}&format={format}&quality={quality}',
+        'url_template_cropped' => '?width={width}&height={height}&fit=crop&crop=smart&format={format}&quality={quality}'
     );
     
     $settings = get_option('burnaway_images_settings', array());
+    if (!is_array($settings)) {
+        $settings = array();
+    }
     return wp_parse_args($settings, $defaults);
 }
 
 /**
- * Get WordPress upload directory info
+ * Generate a CDN URL using the configured template
+ *
+ * @param string $base_url The base image URL
+ * @param array $params Parameters to inject into the template (width, height, format, quality)
+ * @param bool $is_cropped Whether to use the cropped template
+ * @return string The final image URL with parameters
+ */
+function burnaway_images_get_cdn_url($base_url, $params = array(), $is_cropped = false) {
+    // Validate inputs
+    if (empty($base_url) || !is_string($base_url)) {
+        return ''; // Return empty string if base_url is invalid
+    }
+    
+    // Make sure params is an array
+    if (!is_array($params)) {
+        $params = array();
+    }
+    
+    // Get settings
+    $settings = burnaway_images_get_settings();
+    
+    // Select the appropriate template
+    $template = $is_cropped ? 
+        (isset($settings['url_template_cropped']) ? $settings['url_template_cropped'] : '?width={width}&height={height}&fit=crop&crop=smart&format={format}&quality={quality}') : 
+        (isset($settings['url_template']) ? $settings['url_template'] : '?width={width}&format={format}&quality={quality}');
+    
+    // Set default values
+    $defaults = array(
+        'width' => '',
+        'height' => '',
+        'format' => isset($settings['formats'][0]) ? $settings['formats'][0] : 'auto',
+        'quality' => isset($settings['quality']) ? intval($settings['quality']) : 90
+    );
+    
+    // Merge defaults with provided params
+    $params = wp_parse_args($params, $defaults);
+    
+    // Replace tokens in the template
+    $query_string = $template;
+    foreach ($params as $key => $value) {
+        $query_string = str_replace('{' . $key . '}', $value, $query_string);
+    }
+    
+    // Remove any incomplete tokens
+    $query_string = preg_replace('/\{[^}]+\}/', '', $query_string);
+    
+    // Skip if base URL already has parameters
+    if (strpos($base_url, '?') !== false) {
+        return $base_url;
+    }
+    
+    return $base_url . $query_string;
+}
+
+/**
+ * Get WordPress upload directory info with error handling
  * 
  * @return array Upload directory information
  */
 function burnaway_images_get_upload_dir() {
-    return wp_upload_dir();
+    $upload_dir = wp_upload_dir();
+    
+    // Ensure we always return an array with required keys
+    if (!is_array($upload_dir)) {
+        return array(
+            'path' => '',
+            'url' => '',
+            'basedir' => '',
+            'baseurl' => '',
+            'error' => true
+        );
+    }
+    
+    return $upload_dir;
 }
 
 /**

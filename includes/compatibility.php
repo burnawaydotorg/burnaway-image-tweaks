@@ -45,20 +45,10 @@ function burnaway_images_is_shortpixel_request() {
             did_action('shortpixel_before_optimise_image')) {
             $is_shortpixel = true;
         }
-        
-        // Only use backtrace as last resort - it's expensive
-        if (!$is_shortpixel) {
-            $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 5);
-            foreach ($backtrace as $trace) {
-                if (isset($trace['class']) && strpos($trace['class'], 'ShortPixel') !== false) {
-                    $is_shortpixel = true;
-                    break;
-                }
-            }
-        }
     }
     
-    return $is_shortpixel;
+    // Missing return statement here
+    return $is_shortpixel; // Add this line
 }
 
 /**

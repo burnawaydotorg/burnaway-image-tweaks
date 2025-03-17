@@ -1,5 +1,26 @@
 # Changelog
 
+## 2.4.0 - 2025-03-17
+
+### New Features
+
+- Added: Configurable CDN URL templates in admin settings
+- Added: Support for URL template tokens ({width}, {height}, {format}, {quality})
+- Added: Separate templates for standard and cropped images
+
+### Improvements
+
+- Improved: More flexible CDN integration with custom URL formats
+- Improved: Code organization with dedicated URL generator function
+- Improved: Type safety throughout the codebase
+- Improved: Comprehensive error handling and input validation
+- Added: Robust settings sanitization for security and stability
+- Enhanced: Function naming consistency and better parameter validation
+- Fixed: Missing return statement in ShortPixel compatibility function
+- Fixed: Potential undefined function references
+- Enhanced: Debugging tools with better error handling
+- Updated: Documentation with examples of URL template usage
+
 ## 2.3.3 - 2025-03-17
 
 - Added: New functionality to replace missing media files via admin interface

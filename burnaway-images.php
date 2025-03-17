@@ -10,7 +10,7 @@
  * @wordpress-plugin
  * Plugin Name:       Burnaway Images
  * Description:       Optimize image delivery with Fastly CDN while disabling WordPress's default image processing for improved performance and quality.
- * Version:           2.3.3
+ * Version:           2.4.0
  * Author:            Brandon Sheats
  * Author URI:        https://burnaway.org
  * Text Domain:       burnaway-images
@@ -25,7 +25,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('BURNAWAY_IMAGES_VERSION', '2.3.3');
+define('BURNAWAY_IMAGES_VERSION', '2.4.0');
 define('BURNAWAY_IMAGES_PATH', plugin_dir_path(__FILE__));
 define('BURNAWAY_IMAGES_URL', plugin_dir_url(__FILE__));
 define('BURNAWAY_IMAGES_BASENAME', plugin_basename(__FILE__));
@@ -68,11 +68,32 @@ function burnaway_images_activate() {
             'disable_scaling' => true,
             'enable_lazy_loading' => true,
             'enable_async_decoding' => true,
-            'enable_media_replace' => true, // Add this line
+            'enable_media_replace' => true,
             'quality' => 90,
             'formats' => array('auto'),
             'responsive_sizes' => '192, 340, 480, 540, 768, 1000, 1024, 1440, 1920',
+            'url_template' => '?width={width}&format={format}&quality={quality}',
+            'url_template_cropped' => '?width={width}&height={height}&fit=crop&crop=smart&format={format}&quality={quality}'
         ));
+    } else {
+        // Check for migration from pre-2.4 versions
+        $settings = get_option('burnaway_images_settings');
+        $updated = false;
+        
+        // Add URL templates if they don't exist
+        if (!isset($settings['url_template'])) {
+            $settings['url_template'] = '?width={width}&format={format}&quality={quality}';
+            $updated = true;
+        }
+        
+        if (!isset($settings['url_template_cropped'])) {
+            $settings['url_template_cropped'] = '?width={width}&height={height}&fit=crop&crop=smart&format={format}&quality={quality}';
+            $updated = true;
+        }
+        
+        if ($updated) {
+            update_option('burnaway_images_settings', $settings);
+        }
     }
 }
 

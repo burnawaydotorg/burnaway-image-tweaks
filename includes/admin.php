@@ -14,16 +14,42 @@ if (!defined('ABSPATH')) {
 }
 
 /**
- * Register admin menu and settings
+ * Initialize admin functionality
  */
 function burnaway_images_admin_init() {
-    // Add submenu to Media menu
-    add_action('admin_menu', 'burnaway_images_add_menu');
+    // Register settings
+    register_setting(
+        'burnaway_images_options',
+        'burnaway_images_settings',
+        array(
+            'sanitize_callback' => 'burnaway_images_sanitize_settings',
+            'default' => array(
+                'disable_thumbnails' => true,
+                'disable_compression' => true,
+                'enable_responsive' => true,
+                'disable_scaling' => true,
+                'enable_lazy_loading' => true,
+                'enable_async_decoding' => true,
+                'enable_media_replace' => true,
+                'quality' => 90,
+                'formats' => array('auto'),
+                'responsive_sizes' => '192, 340, 480, 540, 768, 1000, 1024, 1440, 1920',
+                'url_template' => '?width={width}&format={format}&quality={quality}',
+                'url_template_cropped' => '?width={width}&height={height}&fit=crop&crop=smart&format={format}&quality={quality}'
+            )
+        )
+    );
     
-    // Register plugin settings
-    add_action('admin_init', 'burnaway_images_register_settings');
+    // Add settings page
+    add_options_page(
+        __('Burnaway Images', 'burnaway-images'),
+        __('Burnaway Images', 'burnaway-images'),
+        'manage_options',
+        'burnaway-images',
+        'burnaway_images_settings_page'
+    );
 }
-add_action('plugins_loaded', 'burnaway_images_admin_init');
+add_action('admin_init', 'burnaway_images_admin_init');
 
 /**
  * Add admin menu under Media
@@ -202,3 +228,67 @@ function burnaway_images_settings_page() {
     </div>
     <?php
 }
+
+/**
+ * Add URL template settings fields to the admin page
+ *
+ * @param array $fields Current fields array
+ * @return array Updated fields array
+ */
+function burnaway_images_add_url_template_settings($fields) {
+    // Get current fields
+    if (!is_array($fields)) {
+        $fields = array();
+    }
+    
+    // Add URL template section heading
+    $fields[] = array(
+        'type' => 'section_start',
+        'id' => 'url_templates',
+        'title' => __('CDN URL Templates', 'burnaway-images')
+    );
+    
+    // Add standard URL template
+    $fields[] = array(
+        'type' => 'text',
+        'id' => 'url_template',
+        'title' => __('Standard URL Template', 'burnaway-images'),
+        'desc' => __('Template for standard images. Available tokens: {width}, {format}, {quality}', 'burnaway-images'),
+        'placeholder' => '?width={width}&format={format}&quality={quality}'
+    );
+    
+    // Add cropped URL template
+    $fields[] = array(
+        'type' => 'text',
+        'id' => 'url_template_cropped',
+        'title' => __('Cropped URL Template', 'burnaway-images'),
+        'desc' => __('Template for cropped images. Available tokens: {width}, {height}, {format}, {quality}', 'burnaway-images'),
+        'placeholder' => '?width={width}&height={height}&fit=crop&crop=smart&format={format}&quality={quality}'
+    );
+    
+    // Add documentation
+    $fields[] = array(
+        'type' => 'html',
+        'content' => '
+        <div class="burnaway-template-help">
+            <h4>' . __('URL Template Tokens', 'burnaway-images') . '</h4>
+            <p>' . __('Use the following tokens in your URL templates:', 'burnaway-images') . '</p>
+            <ul>
+                <li><code>{width}</code> - ' . __('The width of the image', 'burnaway-images') . '</li>
+                <li><code>{height}</code> - ' . __('The height of the image (for cropped images)', 'burnaway-images') . '</li>
+                <li><code>{format}</code> - ' . __('The image format (from format settings)', 'burnaway-images') . '</li>
+                <li><code>{quality}</code> - ' . __('The image quality (from quality settings)', 'burnaway-images') . '</li>
+            </ul>
+            <p>' . __('Example: <code>?w={width}&f={format}&q={quality}</code> for a more compact URL format', 'burnaway-images') . '</p>
+        </div>
+        '
+    );
+    
+    // Close section
+    $fields[] = array(
+        'type' => 'section_end'
+    );
+    
+    return $fields;
+}
+add_filter('burnaway_images_settings_fields', 'burnaway_images_add_url_template_settings');
