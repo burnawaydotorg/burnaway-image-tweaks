@@ -23,11 +23,17 @@ if (!defined('ABSPATH')) {
  * @since 2.2.0
  */
 function burnaway_images_responsive_init() {
-    // Apply filters only when needed
-    if (!is_admin()) {
-        add_action('wp', 'burnaway_images_apply_responsive_filters');
-    }
+    // Replace this line
+    // add_filter('wp_get_attachment_image_attributes', 'custom_responsive_images', 10, 3);
+    
+    // With this:
+    add_filter('wp_get_attachment_image_attributes', 'burnaway_images_custom_responsive_attributes', 10, 3);
+    
+    // Additional responsive image functionality here
 }
+
+// Make sure this function is called
+add_action('init', 'burnaway_images_responsive_init');
 
 /**
  * Check if responsive images should be applied
@@ -176,6 +182,72 @@ function burnaway_images_custom_responsive_attributes($attr, $attachment, $size)
 }
 
 /**
+ * Custom filter for responsive images
+ *
+ * Modifies the image attributes to implement responsive image functionality
+ *
+ * @param array $attr       Array of image attributes
+ * @param WP_Post $attachment WP_Post object for the attachment
+ * @param string|array $size  Requested image size
+ * @return array Modified attributes
+ */
+function custom_responsive_images($attr, $attachment = null, $size = 'full') {
+    // Only proceed if responsive images should be applied
+    if (!should_apply_responsive_images()) {
+        return $attr;
+    }
+    
+    // Get plugin settings
+    $settings = get_option('burnaway_images_settings', array());
+    
+    // Default responsive sizes from settings or use defaults
+    $responsive_sizes = isset($settings['responsive_sizes']) 
+        ? array_map('trim', explode(',', $settings['responsive_sizes'])) 
+        : array(192, 340, 480, 540, 768, 1000, 1024, 1440, 1920);
+    
+    // Only proceed if we have attachment data
+    if (!$attachment) {
+        return $attr;
+    }
+    
+    // Get image URL
+    $image_url = wp_get_attachment_url($attachment->ID);
+    if (!$image_url) {
+        return $attr;
+    }
+    
+    // Build srcset attribute
+    $srcset = array();
+    foreach ($responsive_sizes as $width) {
+        $width = (int)$width;
+        if ($width > 0) {
+            $srcset[] = "{$image_url}?w={$width} {$width}w";
+        }
+    }
+    
+    if (!empty($srcset)) {
+        $attr['srcset'] = implode(', ', $srcset);
+        
+        // Add sizes attribute if not present
+        if (!isset($attr['sizes'])) {
+            $attr['sizes'] = '(max-width: 768px) 100vw, 1024px';
+        }
+        
+        // Add loading attribute if enabled
+        if (isset($settings['enable_lazy_loading']) && $settings['enable_lazy_loading']) {
+            $attr['loading'] = 'lazy';
+        }
+        
+        // Add decoding attribute if enabled
+        if (isset($settings['enable_async_decoding']) && $settings['enable_async_decoding']) {
+            $attr['decoding'] = 'async';
+        }
+    }
+    
+    return $attr;
+}
+
+/**
  * Override WordPress srcset calculation
  *
  * Replaces WordPress srcset with Fastly-optimized versions using
@@ -311,3 +383,6 @@ function burnaway_images_filter_content_images($content) {
         $content
     );
 }
+
+// Apply responsive filters
+add_action('init', 'burnaway_images_apply_responsive_filters');

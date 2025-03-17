@@ -13,7 +13,7 @@ function test_filter_registration() {
              (has_filter('wp_get_attachment_image_attributes', 'custom_responsive_images') ? 'YES' : 'NO') . 
              ' -->';
         echo '<!-- Content filter registered: ' . 
-             (has_filter('the_content', 'filter_content_images') ? 'YES' : 'NO') . 
+             (has_filter('the_content', 'burnaway_images_filter_content_images') ? 'YES' : 'NO') . 
              ' -->';
     });
 }

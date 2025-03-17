@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.3.2 - 2025-03-15
+
+- Fixed: Fatal errors due to undefined functions in debug tools and responsive images implementation
+- Fixed: Corrected function name references in initialization hooks
+- Fixed: Reordered file includes to ensure dependencies load in correct order
+- Improved: Added proper function fallbacks to prevent fatal errors
+
 ## 2.3.0 - 2025-03-15
 
 ### New Features

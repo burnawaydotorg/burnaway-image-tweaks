@@ -45,12 +45,7 @@ function burnaway_images_maybe_migrate_settings() {
 /**
  * Get plugin settings with defaults
  *
- * Retrieves the plugin settings from the database or returns defaults.
- * This is a central function used throughout the plugin to ensure
- * consistent access to settings.
- *
- * @since 1.0.0
- * @return array The plugin settings
+ * @return array Plugin settings
  */
 function burnaway_images_get_settings() {
     $defaults = array(
@@ -63,18 +58,16 @@ function burnaway_images_get_settings() {
         'enable_media_replace' => true,
         'quality' => 90,
         'formats' => array('auto'),
-        'responsive_sizes' => '192, 340, 480, 540, 768, 1000, 1024, 1440, 1920',
+        'responsive_sizes' => '192, 340, 480, 540, 768, 1000, 1024, 1440, 1920'
     );
     
-    return get_option('burnaway_images_settings', $defaults);
+    $settings = get_option('burnaway_images_settings', array());
+    return wp_parse_args($settings, $defaults);
 }
 
 /**
- * Get upload directory information
- *
- * Wrapper for wp_upload_dir() for consistency and potential future enhancements.
- *
- * @since 1.0.0
+ * Get WordPress upload directory info
+ * 
  * @return array Upload directory information
  */
 function burnaway_images_get_upload_dir() {
@@ -82,25 +75,15 @@ function burnaway_images_get_upload_dir() {
 }
 
 /**
- * Get responsive sizes from settings
- *
- * Parses the responsive_sizes setting into an array of integers.
- * Returns sorted, unique width values.
- *
- * @since 2.1.0
- * @return array Array of integer width values
+ * Get responsive sizes array
+ * 
+ * @return array Responsive sizes
  */
 function burnaway_images_get_responsive_sizes() {
     $settings = burnaway_images_get_settings();
-    $size_string = isset($settings['responsive_sizes']) ? $settings['responsive_sizes'] : '192, 340, 480, 540, 768, 1000, 1024, 1440, 1920';
-    
-    // Convert string to array, clean up values
-    $sizes = array_map('intval', array_map('trim', explode(',', $size_string)));
-    
-    // Sort sizes and remove duplicates
-    $sizes = array_unique($sizes);
+    $sizes_string = isset($settings['responsive_sizes']) ? $settings['responsive_sizes'] : '192, 340, 480, 540, 768, 1000, 1024, 1440, 1920';
+    $sizes = array_map('intval', array_map('trim', explode(',', $sizes_string)));
     sort($sizes);
-    
     return $sizes;
 }
 
@@ -130,60 +113,37 @@ function burnaway_images_file_exists($path) {
 }
 
 /**
- * Get attachment metadata with efficient caching
- *
- * Retrieves attachment metadata with static caching for improved performance.
- *
- * @since 2.1.0
+ * Get attachment metadata with error handling
+ * 
  * @param int $attachment_id Attachment ID
- * @return array|bool Attachment metadata or false if not found
+ * @return array|false Attachment metadata or false on failure
  */
 function burnaway_images_get_attachment_metadata($attachment_id) {
-    static $cache = array();
-    
-    if (!isset($cache[$attachment_id])) {
-        $cache[$attachment_id] = wp_get_attachment_metadata($attachment_id);
-    }
-    
-    return $cache[$attachment_id];
+    return wp_get_attachment_metadata($attachment_id);
 }
 
 /**
- * Get original image URL with fallback
- *
- * Retrieves the URL to the original image, bypassing WordPress scaled versions when possible.
- * Falls back to scaled version if original is not available.
- *
- * @since 2.2.1
+ * Get original URL for an attachment
+ * 
  * @param int $attachment_id Attachment ID
- * @return string URL to the best available image
+ * @return string Original URL
  */
 function burnaway_images_get_original_url($attachment_id) {
-    $upload_dir = wp_upload_dir();
-    $metadata = wp_get_attachment_metadata($attachment_id);
+    $url = wp_get_attachment_url($attachment_id);
     
-    // First check if there's an original_image (WordPress scaled the image)
-    if (isset($metadata['original_image']) && isset($metadata['file'])) {
-        $file_dir = dirname($metadata['file']);
-        $original_file = $file_dir === '.' ? $metadata['original_image'] : $file_dir . '/' . $metadata['original_image'];
-        $original_path = $upload_dir['basedir'] . '/' . $original_file;
+    // Handle scaled images
+    if (strpos($url, '-scaled.') !== false) {
+        $original_url = str_replace('-scaled.', '.', $url);
+        $original_path = str_replace(
+            burnaway_images_get_upload_dir()['baseurl'], 
+            burnaway_images_get_upload_dir()['basedir'], 
+            $original_url
+        );
         
-        // Check if original file actually exists
-        if (burnaway_images_file_exists($original_path)) {
-            return $upload_dir['baseurl'] . '/' . $original_file;
-        }
-        
-        // Original doesn't exist, log if debugging
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Burnaway Images: Original image not found, using scaled version: ' . $original_path);
+        if (file_exists($original_path)) {
+            return $original_url;
         }
     }
     
-    // Use the regular file path (which might be the scaled version)
-    if (isset($metadata['file'])) {
-        return $upload_dir['baseurl'] . '/' . $metadata['file'];
-    }
-    
-    // Final fallback to standard function
-    return wp_get_attachment_url($attachment_id);
+    return $url;
 }
