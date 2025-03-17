@@ -1,6 +1,16 @@
 # Changelog
 
-## 2.3.2 - 2025-03-15
+## 2.3.3 - 2025-03-17
+
+- Added: New functionality to replace missing media files via admin interface
+- Fixed: PHP fatal errors from undefined functions in debug tools
+- Fixed: Array access errors in responsive images implementation
+- Fixed: Updated function name references in debug tools
+- Improved: Better type checking before accessing array values
+- Improved: Consistent function naming conventions throughout the plugin
+- Improved: File loading order to prevent dependency issues
+
+## 2.3.2 - 2025-03-16
 
 - Fixed: Fatal errors due to undefined functions in debug tools and responsive images implementation
 - Fixed: Corrected function name references in initialization hooks

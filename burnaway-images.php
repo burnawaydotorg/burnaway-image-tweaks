@@ -10,7 +10,7 @@
  * @wordpress-plugin
  * Plugin Name:       Burnaway Images
  * Description:       Optimize image delivery with Fastly CDN while disabling WordPress's default image processing for improved performance and quality.
- * Version:           2.3.2
+ * Version:           2.3.3
  * Author:            Brandon Sheats
  * Author URI:        https://burnaway.org
  * Text Domain:       burnaway-images
@@ -25,7 +25,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('BURNAWAY_IMAGES_VERSION', '2.3.2');
+define('BURNAWAY_IMAGES_VERSION', '2.3.3');
 define('BURNAWAY_IMAGES_PATH', plugin_dir_path(__FILE__));
 define('BURNAWAY_IMAGES_URL', plugin_dir_url(__FILE__));
 define('BURNAWAY_IMAGES_BASENAME', plugin_basename(__FILE__));

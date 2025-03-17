@@ -427,3 +427,173 @@ function burnaway_images_delete_attachment_thumbnails($attachment_id, $metadata)
         }
     }
 }
+
+/**
+ * Replace missing media file with a new one
+ *
+ * Allows replacing media files that no longer exist on the server
+ * with new versions from backups or other sources.
+ *
+ * @param int $attachment_id The attachment ID to replace
+ * @param string $replacement_path Full path to the replacement file
+ * @return bool|WP_Error True on success, WP_Error on failure
+ */
+function burnaway_images_replace_missing_media($attachment_id, $replacement_path) {
+    // Validate input
+    if (!$attachment_id || !file_exists($replacement_path)) {
+        return new WP_Error('invalid_input', 'Invalid attachment ID or replacement file path.');
+    }
+    
+    // Get attachment data
+    $attachment = get_post($attachment_id);
+    if (!$attachment || 'attachment' !== $attachment->post_type) {
+        return new WP_Error('invalid_attachment', 'Invalid attachment ID.');
+    }
+    
+    // Get attachment metadata
+    $metadata = wp_get_attachment_metadata($attachment_id);
+    $old_file = get_attached_file($attachment_id, true);
+    $upload_dir = wp_upload_dir();
+    
+    // Check if original file exists
+    $file_exists = file_exists($old_file);
+    
+    // Prepare paths
+    $path_parts = pathinfo($old_file);
+    $old_dirname = $path_parts['dirname'];
+    
+    // Create directory if it doesn't exist
+    if (!file_exists($old_dirname)) {
+        wp_mkdir_p($old_dirname);
+    }
+    
+    // Copy new file to the correct location
+    if (!@copy($replacement_path, $old_file)) {
+        return new WP_Error('copy_failed', 'Failed to copy replacement file.');
+    }
+    
+    // Update file permissions
+    $stat = stat(dirname($old_file));
+    $perms = $stat['mode'] & 0000666;
+    @chmod($old_file, $perms);
+    
+    // Get new file info
+    $filetype = wp_check_filetype($replacement_path);
+    $new_mime = $filetype['type'];
+    $file_size = filesize($replacement_path);
+    
+    // Update attachment metadata
+    if (!$file_exists || !is_array($metadata)) {
+        // Generate completely new metadata for missing files
+        $metadata = wp_generate_attachment_metadata($attachment_id, $old_file);
+    } else {
+        // Update existing metadata
+        $imagesize = getimagesize($old_file);
+        if ($imagesize) {
+            $metadata['width'] = $imagesize[0];
+            $metadata['height'] = $imagesize[1];
+            $metadata['filesize'] = $file_size;
+            
+            // Remove old sizes to force regeneration
+            if (isset($metadata['sizes'])) {
+                unset($metadata['sizes']);
+            }
+            
+            // Regenerate thumbnails
+            $metadata = wp_generate_attachment_metadata($attachment_id, $old_file);
+        }
+    }
+    
+    // Update attachment record
+    wp_update_attachment_metadata($attachment_id, $metadata);
+    
+    if ($new_mime && $new_mime !== get_post_mime_type($attachment)) {
+        // Update mime type in database
+        wp_update_post(array(
+            'ID' => $attachment_id,
+            'post_mime_type' => $new_mime
+        ));
+    }
+    
+    // Clear any caches
+    clean_attachment_cache($attachment_id);
+    
+    // Action hook for other plugins
+    do_action('burnaway_images_after_replace_missing_media', $attachment_id, $old_file, $replacement_path);
+    
+    return true;
+}
+
+/**
+ * Admin UI for replacing missing media
+ * 
+ * Adds a form to the media edit screen for replacing missing media
+ */
+function burnaway_images_missing_media_ui() {
+    $post = get_post();
+    if (!$post || 'attachment' !== $post->post_type) {
+        return;
+    }
+    
+    $file = get_attached_file($post->ID);
+    if (file_exists($file)) {
+        return; // File exists, use regular media replace
+    }
+    
+    ?>
+    <div class="missing-media-replace">
+        <h3><?php _e('Replace Missing Media File', 'burnaway-images'); ?></h3>
+        <p><?php _e('The original media file is missing. Upload a replacement file:', 'burnaway-images'); ?></p>
+        
+        <form method="post" enctype="multipart/form-data">
+            <?php wp_nonce_field('burnaway_replace_missing_media', 'burnaway_missing_media_nonce'); ?>
+            <input type="hidden" name="attachment_id" value="<?php echo esc_attr($post->ID); ?>" />
+            <input type="file" name="replacement_file" required />
+            <p class="description"><?php _e('Select a replacement file from your computer', 'burnaway-images'); ?></p>
+            <button type="submit" name="burnaway_replace_missing" class="button button-primary">
+                <?php _e('Upload & Replace', 'burnaway-images'); ?>
+            </button>
+        </form>
+    </div>
+    <?php
+}
+add_action('attachment_submitbox_misc_actions', 'burnaway_images_missing_media_ui', 20);
+
+/**
+ * Process the missing media replacement form
+ */
+function burnaway_images_process_missing_media_replacement() {
+    if (!isset($_POST['burnaway_replace_missing']) || !isset($_POST['attachment_id'])) {
+        return;
+    }
+    
+    // Check nonce
+    if (!isset($_POST['burnaway_missing_media_nonce']) || 
+        !wp_verify_nonce($_POST['burnaway_missing_media_nonce'], 'burnaway_replace_missing_media')) {
+        wp_die('Security check failed');
+    }
+    
+    // Check permissions
+    if (!current_user_can('upload_files')) {
+        wp_die('You do not have permission to upload files');
+    }
+    
+    $attachment_id = intval($_POST['attachment_id']);
+    
+    // Check if file was uploaded
+    if (!isset($_FILES['replacement_file']) || $_FILES['replacement_file']['error'] !== 0) {
+        wp_die('No file was uploaded or there was an upload error');
+    }
+    
+    // Process the upload
+    $result = burnaway_images_replace_missing_media($attachment_id, $_FILES['replacement_file']['tmp_name']);
+    
+    if (is_wp_error($result)) {
+        wp_die($result->get_error_message());
+    }
+    
+    // Redirect back to the attachment edit screen
+    wp_redirect(admin_url('post.php?post=' . $attachment_id . '&action=edit&message=1'));
+    exit;
+}
+add_action('admin_init', 'burnaway_images_process_missing_media_replacement');
