@@ -344,7 +344,60 @@ function burnaway_images_filter_content_images($content) {
             // Get settings with validation
             $settings = burnaway_images_get_settings();
             
-            // ...rest of function with proper validation...
+            // Skip if this looks like an SVG or already has srcset
+            if (strpos($src, '.svg') !== false || strpos($after_src, 'srcset') !== false) {
+                return $matches[0];
+            }
+            
+            // Get quality and format settings
+            $quality = isset($settings['quality']) ? intval($settings['quality']) : 90;
+            $formats = isset($settings['formats']) && is_array($settings['formats']) ? $settings['formats'] : array('auto');
+            $format = !empty($formats) ? $formats[0] : 'auto';
+            
+            // Get responsive sizes
+            $responsive_sizes = burnaway_images_get_responsive_sizes();
+            
+            // Build srcset
+            $srcset = array();
+            foreach ($responsive_sizes as $width) {
+                $srcset[] = burnaway_images_get_cdn_url($src, array(
+                    'width' => $width,
+                    'format' => $format,
+                    'quality' => $quality
+                )) . " {$width}w";
+            }
+            
+            // Only proceed if we have srcset entries
+            if (empty($srcset)) {
+                return $matches[0];
+            }
+            
+            // Build sizes attribute if not present
+            $sizes_attr = '';
+            if (strpos($after_src, 'sizes=') === false) {
+                $sizes_attr = ' sizes="(max-width: 768px) 100vw, 1024px"';
+            }
+            
+            // Add lazy loading if enabled
+            $lazy_attr = '';
+            if (isset($settings['enable_lazy_loading']) && $settings['enable_lazy_loading']) {
+                if (strpos($img_attrs, 'loading=') === false && strpos($after_src, 'loading=') === false) {
+                    $lazy_attr = ' loading="lazy"';
+                }
+            }
+            
+            // Add async decoding if enabled
+            $decode_attr = '';
+            if (isset($settings['enable_async_decoding']) && $settings['enable_async_decoding']) {
+                if (strpos($img_attrs, 'decoding=') === false && strpos($after_src, 'decoding=') === false) {
+                    $decode_attr = ' decoding="async"';
+                }
+            }
+            
+            // Build the new image tag
+            return '<img' . $img_attrs . 'src="' . $src . '"' . $after_src . 
+                   ' srcset="' . implode(', ', $srcset) . '"' . 
+                   $sizes_attr . $lazy_attr . $decode_attr . '>';
         },
         $content
     );

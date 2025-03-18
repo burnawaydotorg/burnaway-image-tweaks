@@ -79,6 +79,7 @@ function burnaway_images_add_submenu_replace_media() {
         'burnaway_images_replace_media_page'
     );
 }
+add_action('admin_menu', 'burnaway_images_add_submenu_replace_media');
 
 /**
  * Display the media replacement page
@@ -108,8 +109,9 @@ function burnaway_images_replace_media_page() {
         </div>
         <?php endif; ?>
         
-        <form enctype="multipart/form-data" method="post" action="">
+        <form enctype="multipart/form-data" method="post" action="<?php echo admin_url('admin-post.php'); ?>">
             <?php wp_nonce_field('burnaway_replace_media', 'burnaway_replace_media_nonce'); ?>
+            <input type="hidden" name="action" value="burnaway_replace_media">
             <input type="hidden" name="attachment_id" value="<?php echo esc_attr($attachment_id); ?>">
             
             <table class="form-table" role="presentation">
@@ -213,7 +215,7 @@ function burnaway_images_handle_media_replace() {
     
     // ShortPixel compatibility - unhook their filters during replacement
     if (burnaway_images_is_shortpixel_active()) {
-        burnaway_images_disable_shortpixel_filters();
+        burnaway_images_disable_shortpixel_filters($attachment_id);
     }
     
     // Remove the original file before uploading the new one (only for direct replacement)
@@ -250,6 +252,52 @@ function burnaway_images_handle_media_replace() {
     }
     
     // Redirect back to the attachment edit screen
+    wp_redirect(admin_url('post.php?post=' . $attachment_id . '&action=edit&message=1'));
+    exit;
+}
+
+/**
+ * Process media replacement form submission
+ *
+ * @since 2.3.0
+ */
+function burnaway_images_process_replacement() {
+    // Verify nonce
+    if (!isset($_POST['burnaway_replace_media_nonce']) || 
+        !wp_verify_nonce($_POST['burnaway_replace_media_nonce'], 'burnaway_replace_media')) {
+        wp_die(__('Security check failed', 'burnaway-images'), __('Error', 'burnaway-images'), array('response' => 403));
+    }
+    
+    // Check user permissions
+    if (!current_user_can('upload_files')) {
+        wp_die(__('You do not have permission to upload files', 'burnaway-images'), __('Error', 'burnaway-images'), array('response' => 403));
+    }
+    
+    // Validate attachment ID
+    if (!isset($_POST['attachment_id'])) {
+        wp_die(__('No attachment specified', 'burnaway-images'), __('Error', 'burnaway-images'));
+    }
+    
+    $attachment_id = intval($_POST['attachment_id']);
+    if ($attachment_id <= 0) {
+        wp_die(__('Invalid attachment ID', 'burnaway-images'), __('Error', 'burnaway-images'));
+    }
+    
+    // Check if file was uploaded
+    if (!isset($_FILES['burnaway_replacement_file']) || $_FILES['burnaway_replacement_file']['error'] !== UPLOAD_ERR_OK) {
+        $error_message = isset($_FILES['burnaway_replacement_file']) ? 
+            wp_get_upload_error_string($_FILES['burnaway_replacement_file']['error']) : 
+            __('No file was uploaded', 'burnaway-images');
+        wp_die($error_message, __('Upload Error', 'burnaway-images'));
+    }
+    
+    // Get replacement type (timestamp or direct)
+    $replace_type = isset($_POST['burnaway_replace_type']) ? sanitize_text_field($_POST['burnaway_replace_type']) : 'timestamp';
+    
+    // Handle the media replacement
+    burnaway_images_handle_media_replace();
+    
+    // Redirect to media edit screen on success
     wp_redirect(admin_url('post.php?post=' . $attachment_id . '&action=edit&message=1'));
     exit;
 }
@@ -318,8 +366,9 @@ function burnaway_images_is_shortpixel_active() {
  * Disable ShortPixel filters during replacement
  *
  * @since 2.3.0
+ * @param int $attachment_id Attachment ID
  */
-function burnaway_images_disable_shortpixel_filters() {
+function burnaway_images_disable_shortpixel_filters($attachment_id = null) {
     // For older ShortPixel versions
     if (class_exists('WPShortPixel') && isset($GLOBALS['wpShortPixel'])) {
         // Remove optimization hooks
@@ -337,9 +386,11 @@ function burnaway_images_disable_shortpixel_filters() {
         }
     }
     
-    // Also remove any ShortPixel metadata to force re-optimization
-    delete_post_meta($attachment_id, '_shortpixel_status');
-    delete_post_meta($attachment_id, '_shortpixel_meta');
+    // Also remove any ShortPixel metadata to force re-optimization if an ID is provided
+    if ($attachment_id) {
+        delete_post_meta($attachment_id, '_shortpixel_status');
+        delete_post_meta($attachment_id, '_shortpixel_meta');
+    }
 }
 
 /**
@@ -366,7 +417,7 @@ function burnaway_images_trigger_shortpixel_optimization($attachment_id) {
             }
         }
     }
-    
+       
     // Alternative method for all versions - update a flag that ShortPixel checks
     update_post_meta($attachment_id, '_shortpixel_to_be_processed', true);
 }
@@ -386,6 +437,7 @@ function burnaway_images_delete_attachment_thumbnails($attachment_id, $metadata)
     $upload_dir = wp_upload_dir();
     $path = pathinfo($metadata['file']);
     $base_dir = $upload_dir['basedir'] . '/' . $path['dirname'];
+    $original_filename = basename($metadata['file']); // Add this line to define the variable
     
     // Delete each thumbnail size
     foreach ($metadata['sizes'] as $size => $sizeinfo) {
@@ -493,7 +545,7 @@ function burnaway_images_replace_missing_media($attachment_id, $replacement_path
             if (isset($metadata['sizes'])) {
                 unset($metadata['sizes']);
             }
-            
+               
             // Regenerate thumbnails
             $metadata = wp_generate_attachment_metadata($attachment_id, $old_file);
         }
@@ -515,7 +567,7 @@ function burnaway_images_replace_missing_media($attachment_id, $replacement_path
     
     // Action hook for other plugins
     do_action('burnaway_images_after_replace_missing_media', $attachment_id, $old_file, $replacement_path);
-    
+        
     return true;
 }
 
@@ -599,3 +651,21 @@ function burnaway_images_process_missing_media_replacement() {
     exit;
 }
 add_action('admin_init', 'burnaway_images_process_missing_media_replacement');
+
+/**
+ * Add replace media button to attachment edit screen
+ *
+ * @since 2.3.0
+ */
+function burnaway_images_add_replace_button() {
+    global $post;
+    if (!$post || 'attachment' !== $post->post_type || !wp_attachment_is_image($post->ID)) {
+        return;
+    }
+    
+    echo '<div class="misc-pub-section">';
+    echo '<a href="' . admin_url('post.php?page=burnaway-replace-media&attachment_id=' . $post->ID) . '" class="button">';
+    echo __('Replace Media', 'burnaway-images');
+    echo '</a>';
+    echo '</div>';
+}

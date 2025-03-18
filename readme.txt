@@ -3,8 +3,8 @@ Contributors: sheatsb
 Tags: images, thumbnails, compression, responsive images, fastly, optimization, media replacement
 Requires at least: 5.0
 Tested up to: 6.4
-Stable tag: 2.3.0
-Requires PHP: 7.2
+Stable tag: 2.4.1
+Requires PHP: 8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -94,6 +94,35 @@ function debug_fastly_srcset() {
 `
 
 == Changelog ==
+
+= 2.4.1 - 2025-03-20 =
+
+* Fixed: Media replacement functionality issues on attachment edit screen
+* Fixed: Circular dependency in media replacement processing functions
+* Fixed: Missing return statement in ShortPixel compatibility function
+* Fixed: Attachment URL handling with proper file existence validation
+* Fixed: Form submission issues in media replacement interface
+* Fixed: File path construction for media replacement uploads
+* Fixed: Undefined variables in thumbnail deletion function
+* Fixed: Inconsistent function registration in responsive images module
+* Fixed: Error handling for missing files during media replacement
+* Improved: Error messages for failed media replacement attempts
+
+= 2.4.0 - 2025-03-17 =
+
+* Added: Configurable CDN URL templates in admin settings
+* Added: Support for URL template tokens ({width}, {height}, {format}, {quality})
+* Added: Separate templates for standard and cropped images
+* Improved: More flexible CDN integration with custom URL formats
+* Improved: Code organization with dedicated URL generator function
+* Improved: Type safety throughout the codebase
+* Improved: Comprehensive error handling and input validation
+* Added: Robust settings sanitization for security and stability
+* Enhanced: Function naming consistency and better parameter validation
+* Fixed: Missing return statement in ShortPixel compatibility function
+* Fixed: Potential undefined function references
+* Enhanced: Debugging tools with better error handling
+* Updated: Documentation with examples of URL template usage
 
 = 2.3.0 - 2025-03-15 =
 
@@ -194,6 +223,12 @@ function debug_fastly_srcset() {
 * Maintained: Image compression disabling (100% quality)
 
 == Upgrade Notice ==
+
+= 2.4.1 =
+Important update fixing media replacement functionality and form submission issues.
+
+= 2.4.0 =
+Major update adding configurable CDN URL templates for more flexible image optimization.
 
 = 2.3.0 =
 Major update adding media replacement functionality with WP Offload Media and ShortPixel compatibility.

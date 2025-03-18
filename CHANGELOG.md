@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.4.1 - 2025-03-20
+
+### Bug Fixes
+
+- Fixed: Media replacement functionality issues on attachment edit screen
+- Fixed: Circular dependency in media replacement processing functions
+- Fixed: Missing return statement in ShortPixel compatibility function
+- Fixed: Attachment URL handling with proper file existence validation
+- Fixed: Form submission issues in media replacement interface
+- Fixed: File path construction for media replacement uploads
+- Fixed: Undefined variables in thumbnail deletion function
+- Fixed: Inconsistent function registration in responsive images module
+- Fixed: Error handling for missing files during media replacement
+- Improved: Error messages for failed media replacement attempts
+
 ## 2.4.0 - 2025-03-17
 
 ### New Features

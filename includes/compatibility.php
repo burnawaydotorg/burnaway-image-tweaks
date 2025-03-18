@@ -47,8 +47,7 @@ function burnaway_images_is_shortpixel_request() {
         }
     }
     
-    // Missing return statement here
-    return $is_shortpixel; // Add this line
+    return $is_shortpixel; // This was missing in your code
 }
 
 /**
