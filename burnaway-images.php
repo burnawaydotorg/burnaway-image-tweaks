@@ -98,6 +98,21 @@ function burnaway_images_activate() {
 }
 
 /**
+ * Ensure proper user role capabilities for media library access
+ */
+function burnaway_images_fix_capabilities() {
+    $roles = array('editor', 'author', 'contributor');
+    
+    foreach ($roles as $role_name) {
+        $role = get_role($role_name);
+        if ($role) {
+            $role->add_cap('upload_files', true);
+        }
+    }
+}
+add_action('admin_init', 'burnaway_images_fix_capabilities');
+
+/**
  * Initialize the plugin by setting up hooks
  */
 function burnaway_images_init() {

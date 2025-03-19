@@ -20,6 +20,19 @@ if (!defined('ABSPATH')) {
  * @since 2.3.0
  */
 function burnaway_images_media_replace_init() {
+    // Check if user can upload files - MODIFIED to use edit_posts instead of upload_files
+    if (!current_user_can('edit_posts')) {
+        wp_die(__('You do not have permission to upload files.', 'burnaway-images'));
+    }
+    
+    // Get the ID
+    $post_id = intval($_GET['post_id']);
+    
+    // Check if user can edit this post
+    if (!current_user_can('edit_post', $post_id)) {
+        wp_die(__('You do not have permission to edit this file.', 'burnaway-images'));
+    }
+    
     // Check if media replace is enabled in settings
     $settings = burnaway_images_get_settings();
     
@@ -74,7 +87,7 @@ function burnaway_images_add_submenu_replace_media() {
         null, // No parent menu
         __('Replace Media', 'burnaway-images'),
         __('Replace Media', 'burnaway-images'),
-        'upload_files',
+        'edit_posts', // Changed from 'upload_files' to 'edit_posts'
         'burnaway-replace-media',
         'burnaway_images_replace_media_page'
     );
@@ -87,7 +100,7 @@ add_action('admin_menu', 'burnaway_images_add_submenu_replace_media');
  * @since 2.3.0
  */
 function burnaway_images_replace_media_page() {
-    if (!current_user_can('upload_files')) {
+    if (!current_user_can('edit_posts')) { // Changed from 'upload_files' to 'edit_posts'
         wp_die(__('You do not have permission to upload files.', 'burnaway-images'));
     }
 
@@ -268,8 +281,8 @@ function burnaway_images_process_replacement() {
         wp_die(__('Security check failed', 'burnaway-images'), __('Error', 'burnaway-images'), array('response' => 403));
     }
     
-    // Check user permissions
-    if (!current_user_can('upload_files')) {
+    // Check user permissions - Changed from 'upload_files' to 'edit_posts'
+    if (!current_user_can('edit_posts')) {
         wp_die(__('You do not have permission to upload files', 'burnaway-images'), __('Error', 'burnaway-images'), array('response' => 403));
     }
     
@@ -620,8 +633,8 @@ function burnaway_images_process_missing_media_replacement() {
         wp_die(__('Security check failed', 'burnaway-images'), __('Error', 'burnaway-images'), array('response' => 403));
     }
     
-    // Check permissions
-    if (!current_user_can('upload_files')) {
+    // Check permissions - Changed from 'upload_files' to 'edit_posts'
+    if (!current_user_can('edit_posts')) {
         wp_die(__('You do not have permission to upload files', 'burnaway-images'), __('Error', 'burnaway-images'), array('response' => 403));
     }
     
@@ -668,4 +681,19 @@ function burnaway_images_add_replace_button() {
     echo __('Replace Media', 'burnaway-images');
     echo '</a>';
     echo '</div>';
+}
+
+/**
+ * Filter the uploaded file before processing
+ *
+ * @param array $file Uploaded file data
+ * @return array Filtered file data
+ */
+function burnaway_images_replace_upload_filter($file) {
+    // Check if user can upload files - MODIFIED to use edit_posts
+    if (!current_user_can('edit_posts')) {
+        return $file;
+    }
+    
+    // ... rest of function continues
 }

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.4.2 - March 19, 2025
+
+- Fixed: Media library access for non-admin users by changing permission checks from 'upload_files' to 'edit_posts'
+- Fixed: Issue with media attachments saving as webpages by improving mime type detection
+- Improved: File handling in media replacement functionality
+
 ## 2.4.1 - 2025-03-20
 
 ### Bug Fixes

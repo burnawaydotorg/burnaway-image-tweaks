@@ -221,3 +221,83 @@ function burnaway_images_get_original_url($attachment_id) {
     
     return $url;
 }
+
+/**
+ * Fix the mime type detection for media files
+ */
+function burnaway_images_fix_mime_types($data, $file, $filename, $mimes) {
+    // Preserve the original mime type detection
+    $wp_filetype = wp_check_filetype($filename, $mimes);
+    
+    if (!empty($wp_filetype['type'])) {
+        $data['type'] = $wp_filetype['type'];
+        $data['ext'] = $wp_filetype['ext'];
+    }
+    
+    return $data;
+}
+add_filter('wp_check_filetype_and_ext', 'burnaway_images_fix_mime_types', 99, 4);
+
+// Fix for attachment URLs
+function burnaway_images_fix_attachment_urls($url, $post_id) {
+    // Get attachment metadata
+    $attachment = get_post($post_id);
+    
+    // Only modify URLs for actual attachment files
+    if ($attachment && $attachment->post_type === 'attachment') {
+        // Ensure proper file extension is preserved
+        $mime_type = get_post_mime_type($attachment);
+        
+        // Fix URL if needed based on mime type
+        if (strpos($mime_type, 'image/') === 0 || strpos($mime_type, 'audio/') === 0 || 
+            strpos($mime_type, 'video/') === 0 || strpos($mime_type, 'application/') === 0) {
+            // Make sure extension is preserved in URL
+            $path_parts = pathinfo($url);
+            if (empty($path_parts['extension'])) {
+                $extension = burnaway_images_mime_to_ext($mime_type);
+                if ($extension) {
+                    $url .= '.' . $extension;
+                }
+            }
+        }
+    }
+    
+    return $url;
+}
+add_filter('wp_get_attachment_url', 'burnaway_images_fix_attachment_urls', 99, 2);
+
+/**
+ * Helper function to get file extension from mime type
+ */
+function burnaway_images_mime_to_ext($mime) {
+    $mime_map = array(
+        'image/jpeg' => 'jpg',
+        'image/png' => 'png',
+        'image/gif' => 'gif',
+        'image/webp' => 'webp',
+        'application/pdf' => 'pdf',
+        // Add more mime types as needed
+    );
+    
+    return isset($mime_map[$mime]) ? $mime_map[$mime] : '';
+}
+
+/**
+ * Fix for media mime type detection
+ *
+ * @since 2.3.1
+ */
+function burnaway_images_fix_attachment_mime_types($data, $file, $filename, $mimes) {
+    // If WordPress couldn't detect the proper mime type, try to determine it based on extension
+    if (empty($data['type']) || $data['type'] == 'text/html') {
+        $wp_filetype = wp_check_filetype($filename, $mimes);
+        
+        if (!empty($wp_filetype['type'])) {
+            $data['type'] = $wp_filetype['type'];
+            $data['ext'] = $wp_filetype['ext'];
+        }
+    }
+    
+    return $data;
+}
+add_filter('wp_check_filetype_and_ext', 'burnaway_images_fix_attachment_mime_types', 10, 4);
