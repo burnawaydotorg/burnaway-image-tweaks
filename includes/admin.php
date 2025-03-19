@@ -180,7 +180,7 @@ function burnaway_images_admin_init() {
         'burnaway_general_section',
         array(
             'id' => 'responsive_sizes',
-            'desc' => __('Comma-separated list of widths for responsive images', 'burnaway-images')
+            'desc' => __('Comma-separated list of widths for responsive images,  Defaults - 192, 340, 480, 540, 768, 1000, 1024, 1440, 1920', 'burnaway-images')
         )
     );
     
