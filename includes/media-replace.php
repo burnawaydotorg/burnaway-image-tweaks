@@ -176,7 +176,7 @@ function burnaway_images_handle_media_replace() {
         return;
     }
     
-    if (!isset($_POST['attachment_id']) || !isset($_FILES['burnaway_replacement_file']) || !current_user_can('upload_files')) {
+    if (!isset($_POST['attachment_id']) || !isset($_FILES['burnaway_replacement_file']) || !current_user_can('edit_posts')) {
         return;
     }
     

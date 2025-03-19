@@ -51,11 +51,7 @@ function burnaway_images_should_apply_responsive() {
         return false;
     }
     
-    // Skip for logged-in users with contributor or higher role
-    if (is_user_logged_in() && current_user_can('edit_posts')) {
-        return false;
-    }
-    
+    // Always apply on frontend (remove user role check)
     return true;
 }
 

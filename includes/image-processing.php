@@ -225,34 +225,6 @@ function burnaway_images_use_original_images($image, $attachment_id, $size, $ico
 }
 
 /**
- * Fix attachment URLs to use original images when available
- * 
- * Replaces -scaled URLs with original URLs if original exists.
- *
- * @since 2.2.1
- * @param string $url Attachment URL
- * @param int $attachment_id Attachment ID
- * @return string Modified URL
- */
-function burnaway_images_fix_attachment_urls($url, $attachment_id) {
-    if (strpos($url, '-scaled.') !== false) {
-        $original_url = str_replace('-scaled.', '.', $url);
-        $original_path = str_replace(
-            burnaway_images_get_upload_dir()['baseurl'], 
-            burnaway_images_get_upload_dir()['basedir'], 
-            $original_url
-        );
-        
-        if (burnaway_images_file_exists($original_path)) {
-            return $original_url;
-        } else if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('Burnaway Images: Original image not found, using scaled version: ' . $original_path);
-        }
-    }
-    return $url;
-}
-
-/**
  * Fix image URLs in content when originals are available
  * 
  * Replaces -scaled URLs with original URLs in post content when original files exist.
