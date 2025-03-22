@@ -20,19 +20,6 @@ if (!defined('ABSPATH')) {
  * @since 2.3.0
  */
 function burnaway_images_media_replace_init() {
-    // Check if user can upload files - MODIFIED to use edit_posts instead of upload_files
-    if (!current_user_can('edit_posts')) {
-        wp_die(__('You do not have permission to upload files.', 'burnaway-images'));
-    }
-    
-    // Get the ID
-    $post_id = intval($_GET['post_id']);
-    
-    // Check if user can edit this post
-    if (!current_user_can('edit_post', $post_id)) {
-        wp_die(__('You do not have permission to edit this file.', 'burnaway-images'));
-    }
-    
     // Check if media replace is enabled in settings
     $settings = burnaway_images_get_settings();
     
@@ -45,6 +32,31 @@ function burnaway_images_media_replace_init() {
     }
 }
 add_action('admin_init', 'burnaway_images_media_replace_init');
+
+/**
+ * Ensure proper user role capabilities for media library access
+ * Only runs once on plugin activation
+ */
+function burnaway_images_fix_capabilities() {
+    static $already_run = false;
+    
+    // Prevent running multiple times in the same request
+    if ($already_run) {
+        return;
+    }
+    
+    $already_run = true;
+    
+    $roles = array('editor', 'author', 'contributor');
+    
+    foreach ($roles as $role_name) {
+        $role = get_role($role_name);
+        if ($role) {
+            $role->add_cap('upload_files', true);
+        }
+    }
+}
+add_action('admin_init', 'burnaway_images_fix_capabilities');
 
 /**
  * Add "Replace Media" action link in media list

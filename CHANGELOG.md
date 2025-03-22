@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.4.3 - March 21, 2025
+
+### Bug Fixes
+
+- Fixed: Duplicate function registrations in responsive images module
+- Fixed: Multiple hook initializations causing interference in image processing
+- Fixed: Unconditional permission checks in media replacement functionality
+- Fixed: Debug tools running on production sites without proper conditional checks
+- Improved: Consolidated responsive image initialization for better reliability
+- Improved: Added proper function deprecation notices for backward compatibility
+- Improved: Made debug tools properly conditional with clear documentation
+- Improved: Added static variable to ensure capabilities are only modified once
+
 ## 2.4.2 - March 19, 2025
 
 - Fixed: Media library access for non-admin users by changing permission checks from 'upload_files' to 'edit_posts'

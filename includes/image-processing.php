@@ -69,9 +69,9 @@ function burnaway_images_disable_default_sizes() {
  * 
  * @since 1.0.0
  * @param array $sizes Array of sizes to be generated
- * @return array Empty array or 'full' size for ShortPixel
+ * @return array Empty array or original sizes if disabled
  */
-function burnaway_images_disable_sizes($sizes) {
+function burnaway_images_disable_thumbnails($sizes) {
     $settings = burnaway_images_get_settings();
     
     if (!isset($settings['disable_thumbnails']) || !$settings['disable_thumbnails']) {
@@ -84,6 +84,21 @@ function burnaway_images_disable_sizes($sizes) {
     }
     
     return array();
+}
+
+/**
+ * Prevent WordPress from generating additional sizes
+ * 
+ * Filters intermediate_image_sizes_advanced to return an empty array,
+ * preventing WordPress from generating any additional sizes.
+ * 
+ * @since 1.0.0
+ * @param array $sizes Array of sizes to be generated
+ * @return array Empty array or 'full' size for ShortPixel
+ */
+function burnaway_images_disable_sizes($sizes) {
+    // Call the main function for backward compatibility
+    return burnaway_images_disable_thumbnails($sizes);
 }
 
 /**
